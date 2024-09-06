@@ -1,0 +1,11 @@
+IF ((TRUE == TRUE) && (0 == 0) && (1 == 1) && (5000 > 1000)) THEN
+    STRING a
+END_IF
+
+IF ((TRUE == 1) && (000 == 0) && (1 == TRUE)) THEN
+    STRING a
+END_IF
+
+IF ((TRUE == FALSE) && (FALSE == TRUE) && (1 == 0)) THEN
+    STRING a
+END_IF

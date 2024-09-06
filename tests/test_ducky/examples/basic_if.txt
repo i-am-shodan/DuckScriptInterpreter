@@ -1,0 +1,35 @@
+IF (534 == 534) THEN
+    STRING a
+END_IF
+
+IF (5 > 3) THEN
+    STRING b
+END_IF
+
+IF (3 < 5) THEN
+    STRING c
+END_IF
+
+IF (4 <= 5) THEN
+    STRING d
+END_IF
+
+IF (5 >= 4) THEN
+    STRING e
+END_IF
+
+IF (1 != 2) THEN
+    STRING f
+END_IF
+
+IF (TRUE == TRUE) THEN
+    STRING g
+END_IF
+
+IF (FALSE == FALSE) THEN
+    STRING h
+END_IF
+
+IF (FALSE != TRUE) THEN
+    STRING i
+END_IF

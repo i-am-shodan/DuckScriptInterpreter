@@ -1,0 +1,7 @@
+IF (FUNC1() == TRUE) THEN
+    STRING a
+END_IF
+
+IF (FUNC3() == FALSE) THEN
+    STRING b
+END_IF

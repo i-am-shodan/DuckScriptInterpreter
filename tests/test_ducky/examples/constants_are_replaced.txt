@@ -1,0 +1,2 @@
+DEFINE #FILE /a.ds 123 @$!        
+STRING #FILE

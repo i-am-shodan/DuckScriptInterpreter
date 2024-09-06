@@ -1,0 +1,3 @@
+REM test
+DELAY 5000
+STRING a
