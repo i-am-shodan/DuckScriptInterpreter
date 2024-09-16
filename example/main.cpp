@@ -49,6 +49,10 @@ static void keyboard_release()
     // Release any pressed keys
 }
 
+void reset()
+{
+}
+
 static std::string readLineFromFile(const std::string& filename, int lineNumber)
 {
     std::vector<std::string> script = {
@@ -86,7 +90,8 @@ int main(void) {
         keyboard_release, 
         changeLEDState, 
         waitForButton, 
-        changeUSBMode);
+        changeUSBMode,
+        reset);
 
     std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> extCommands;
     extCommands["FIRE_MISSLES"] = fire_missles_custom_function;

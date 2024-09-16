@@ -7,6 +7,23 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
+// TODO
+// INJECT_MOD WINDOWS - Injecting a modifier key alone without another key
+// BUTTON_DEF - function when button is pressed
+// DISABLE_BUTTON
+// ENABLE_BUTTON
+// VAR
+// IF/ELSE
+// RANDOM...
+// HOLD RELEASE
+// STOP_PAYLOAD
+// RESET
+// JITTER
+// WAIT_FOR_CAPS_ON etc
+// SAVE_HOST_KEYBOARD_LOCK_STATE
+// make faster by holding multiple keys
+
 #include "DuckyParse.h"
 
 #include <algorithm>
@@ -59,6 +76,12 @@ constexpr const char *DuckyInterpreter::GUI;
 constexpr const char *DuckyInterpreter::CAPSLOCK;
 constexpr const char *DuckyInterpreter::NUMLOCK;
 constexpr const char *DuckyInterpreter::SCROLLOCK;
+
+const std::string prefixIF = "IF ";  
+const std::string PrefixWHILE = "WHILE ";  
+const std::string EndWHILE = "END_WHILE";
+const std::string THENSuffix = " THEN";  
+const std::string RestartPayload = "RESTART_PAYLOAD";
 
 // trim from end (in place)
 static inline void rtrim(std::string &s)
@@ -173,14 +196,16 @@ DuckyInterpreter::DuckyInterpreter(
     std::function<void()> keyboardReleaseFunc,
     std::function<void(bool, uint8_t, uint8_t, uint8_t, uint8_t)> changeLEDStateFunc,
     std::function<void()> waitForButtonPressFunc,
-    std::function<void(DuckyInterpreter::USB_MODE&, const uint16_t&, const uint16_t&, const std::string&, const std::string&, const std::string&)> changeModeFunc)
+    std::function<void(DuckyInterpreter::USB_MODE&, const uint16_t&, const uint16_t&, const std::string&, const std::string&, const std::string&)> changeModeFunc,
+    std::function<void()> reset)
     : _delayFunc(delayFunc),
       _readLineFunc(readLineFunc),
       _keyboardPressFunc(keyboardPressFunc),
       _keyboardReleaseFunc(keyboardReleaseFunc),
       _changeLEDStateFunc(changeLEDStateFunc),
       _waitForButtonPressFunc(waitForButtonPressFunc),
-      _changeModeFunc(changeModeFunc)
+      _changeModeFunc(changeModeFunc),
+      _reset(reset)
 {
 
     _commandMap["DELAY"] = [this](string arg)
@@ -338,6 +363,12 @@ DuckyInterpreter::DuckyInterpreter(
         return true;
     };
 
+    _commandMap["RESET"] = [this](string arg)
+    {
+        // do nothing
+        return true;
+    };
+
     _commandMap["DEFINE"] = [this](string arg)
     {
         const auto ret = extractFirstWord(arg);
@@ -424,23 +455,6 @@ DuckyInterpreter::DuckyInterpreter(
         return true;
     };
 };
-
-// TODO
-// INJECT_MOD WINDOWS - Injecting a modifier key alone without another key
-// BUTTON_DEF - function when button is pressed
-// DISABLE_BUTTON
-// ENABLE_BUTTON
-// VAR
-// IF/ELSE/WHILE
-// RANDOM...
-// HOLD RELEASE
-// RESTART_PAYLOAD
-// STOP_PAYLOAD
-// RESET
-// JITTER
-// WAIT_FOR_CAPS_ON etc
-// SAVE_HOST_KEYBOARD_LOCK_STATE
-// make faster by holding multiple keys
 
 inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> DuckyInterpreter::parseStatement(std::string statement)
 {
@@ -532,18 +546,43 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
 }
 
 static std::string extractCondition(const std::string &line) {  
-    const std::string prefix = "IF ";  
-    const std::string suffix = " THEN";  
+    // WHILE (TRUE_FIVE_TIMES() == TRUE)
+    // IF (FUNC3() == FALSE) THEN
   
-    std::string condition = line;  
-  
-    if (condition.substr(0, prefix.size()) == prefix) {  
-        condition = condition.substr(prefix.size());  
-    }  
-  
-    if (condition.substr(condition.size() - suffix.size()) == suffix) {  
-        condition = condition.substr(0, condition.size() - suffix.size());  
-    }  
+    std::string condition = line;
+
+    std::string prefix;
+    std::string suffix;
+
+    if (line.substr(0, PrefixWHILE.size()) == PrefixWHILE)
+    {
+        prefix = PrefixWHILE;
+    }
+    else if (line.substr(0, prefixIF.size()) == prefixIF)
+    {
+        prefix = prefixIF;
+        suffix = THENSuffix;
+    }
+    else
+    {
+        // todo we should throw an exception here, or change the error code
+        // doing nothing is unsafe
+        LOG(Log::LOG_ERROR, "\t\tCannot extract condition for = '%s'\r\n", line.c_str());
+    }
+
+    if (prefix.size() != 0)
+    {
+        if (condition.substr(0, prefix.size()) == prefix) {  
+            condition = condition.substr(prefix.size());  
+        }  
+    }
+
+    if (suffix.size() != 0)
+    {
+        if (condition.substr(condition.size() - suffix.size()) == suffix) {  
+            condition = condition.substr(0, condition.size() - suffix.size());  
+        }
+    }
   
     return condition;  
 }  
@@ -563,10 +602,12 @@ int DuckyInterpreter::evaluate(const std::string &str, std::unordered_map<std::s
     // first try to evaluate any functions in the LHS or RHS
     if (extCommands.find(str) != extCommands.cend())
     {
+        LOG(Log::LOG_DEBUG, "\t\tFound extension command to run: %s\r\n", str.c_str());
         return extCommands[str](str, _constants, _variables);
     }
     else
     {
+        LOG(Log::LOG_DEBUG, "\t\tEvaluating text expression\r\n", str.c_str());
         const auto& lower = lowerCaseString(str);
         if (lower == "true")
         {
@@ -584,11 +625,9 @@ int DuckyInterpreter::evaluate(const std::string &str, std::unordered_map<std::s
     }
 }
 
-// the job of this function is to evaluate the condition and if true to increment the line number
-// if false we read until END_IF
-int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std::string& line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+bool DuckyInterpreter::evaluateStatement(std::string& line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
-    LOG(Log::LOG_DEBUG, "Handling IF statement\r\n");
+    LOG(Log::LOG_DEBUG, "Handling statement\r\n");
     auto conditionStr = extractCondition(line);
     LOG(Log::LOG_DEBUG, "\tCondition = '%s'\r\n", conditionStr.c_str());
 
@@ -625,6 +664,15 @@ int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std:
         }
     }
 
+    return conditionToCheck;
+}
+
+// the job of this function is to evaluate the condition and if true to increment the line number
+// if false we read until END_IF
+int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std::string& line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+{
+    const bool conditionToCheck = evaluateStatement(line, extCommands);
+
     if (conditionToCheck)
     {
         LOG(Log::LOG_DEBUG, "\tIF evaluated to success, moving to next line\r\n");
@@ -642,10 +690,17 @@ int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std:
             lineNumber++;
             line = _readLineFunc(filePath, lineNumber);
 
+            if (line.empty())
+            {
+                LOG(Log::LOG_DEBUG, "Error EOF while looking for END_IF\r\n");
+                return SCRIPT_ERROR;
+            }
+
             // sanitise
+            ltrim(line);
             rtrim(line);
 
-            std::string prefix = "END_IF";  
+            const std::string prefix = "END_IF";  
             if (line.empty() || line.substr(0, prefix.size()) == prefix)
             {
                 break;
@@ -654,6 +709,64 @@ int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std:
     }
 
     return lineNumber;
+}
+
+int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, std::string& line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+{
+    const bool conditionToCheck = evaluateStatement(line, extCommands);
+
+    if (conditionToCheck)
+    {
+        LOG(Log::LOG_DEBUG, "\tWHILE evaluated to success, preserving line %d, moving to next line\r\n", lineNumber);
+        _whileLoopLineNumbers.push(lineNumber);
+        // we can execute inside the WHILE statement
+        return lineNumber + 1;
+    }
+    else
+    {
+        LOG(Log::LOG_DEBUG, "\tEvaluation was false, skipping to end\r\n");
+
+        int nestedWhileLoopCount = 1;
+
+        // need to skip instructions until we hit END_WHILE whilst making sure that we aren't
+        // using nested statements in our comparisions!
+        while (true)
+        {
+            // increment line and read
+            lineNumber++;
+            line = _readLineFunc(filePath, lineNumber);
+
+            if (line.empty())
+            {
+                LOG(Log::LOG_DEBUG, "\tError EOF while looking for END_WHILE\r\n");
+                return SCRIPT_ERROR;
+            }
+
+            // sanitise
+            ltrim(line);
+            rtrim(line);
+
+            if (line.substr(0, PrefixWHILE.size()) == PrefixWHILE) 
+            {
+                LOG(Log::LOG_DEBUG, "\tFound inner WHILE statement %d\r\n", lineNumber);
+                nestedWhileLoopCount++;
+            }
+            if (line.empty() || line.substr(0, EndWHILE.size()) == EndWHILE)
+            {
+                LOG(Log::LOG_DEBUG, "\tFound end of inner WHILE statement %d\r\n", lineNumber);
+                nestedWhileLoopCount--;
+
+                if (nestedWhileLoopCount <= 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        LOG(Log::LOG_DEBUG, "\tEnd calculated as %d\r\n", lineNumber);
+        
+        return lineNumber + 1;
+    }
 }
 
 // -1 error
@@ -695,13 +808,37 @@ int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::
         rtrim(command);
         LOG(Log::LOG_DEBUG, "COMMAND = '%s'\r\n", command.c_str());
 
-        std::string prefix = "IF ";  
-
-        if (line.substr(0, prefix.size()) == prefix) // is this an IF statement, if so we handle lineNumber differently
+        if (line.substr(0, prefixIF.size()) == prefixIF) // is this an IF statement, if so we handle lineNumber differently
         {  
             // line starts with "IF "
             return handleIF(filePath, lineNumber, line, extCommands);
-        }  
+        }
+        else if (line.substr(0, PrefixWHILE.size()) == PrefixWHILE) // is this an IF statement, if so we handle lineNumber differently
+        {  
+            // line starts with "WHILE "
+            return handleWHILE(filePath, lineNumber, line, extCommands);
+        }
+        else if (line.substr(0, EndWHILE.size()) == EndWHILE) // END_WHILE needs to pop stack and evaluate initial condition
+        {  
+            // line starts with "END_WHILE"
+            if (_whileLoopLineNumbers.size() == 0)
+            {
+                // we've exited the while loop
+                LOG(Log::LOG_DEBUG, "No return point, WHILE LOOP complete\r\n", lineNumber);
+                commandExitCode = true;
+            }
+            else
+            {
+                lineNumber = _whileLoopLineNumbers.top();
+                _whileLoopLineNumbers.pop();
+                LOG(Log::LOG_DEBUG, "Jumping to line '%d'\r\n", lineNumber);
+                return Execute(filePath, lineNumber, extCommands);
+            }
+        }
+        else if (line.substr(0, RestartPayload.size()) == RestartPayload) // need to handle this cmd here as its changing the line number
+        {
+            return 0;
+        }
         else if (extCommands.find(command) != extCommands.cend()) // first check if we have a extension command set for this string
         {
             commandExitCode = extCommands[command](line, _constants, _variables) != 0;

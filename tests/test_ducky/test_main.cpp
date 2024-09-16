@@ -148,6 +148,11 @@ void delay(uint32_t timeInMS)
     testString += "D" + temp;
 }
 
+void reset()
+{
+    testString += "RESET";
+}
+
 int func1(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
     testString += "FUNC1";
     return true;
@@ -163,12 +168,36 @@ int func3(const std::string& str, std::unordered_map<std::string, std::string> c
     return 0;
 }
 
+static int count = 0;
+int trueFiveTimes(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+    auto ret = count < 5;
+    count++;
+    return ret;
+}
+
+int neverTrue(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+    return 0;
+}
+
+static bool set = false;
+int trueOnce(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+    if (set == false)
+    {
+        set = true;
+        return 1;
+    }
+    return 0;
+}
+
 void runTest(int id, std::string filename, std::string output)
 {
     std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> extCommands;
     extCommands["FUNC1()"] = func1;
     extCommands["FUNC2()"] = func2;
     extCommands["FUNC3()"] = func3;
+    extCommands["TRUE_FIVE_TIMES()"] = trueFiveTimes;
+    extCommands["NEVER_TRUE()"] = neverTrue;
+    extCommands["TRUE_ONCE()"] = trueOnce;
 
     DuckyInterpreter ducky = DuckyInterpreter(
         delay, 
@@ -177,7 +206,8 @@ void runTest(int id, std::string filename, std::string output)
         keyboard_release, 
         changeLEDState, 
         waitForButton, 
-        changeUSBMode);
+        changeUSBMode,
+        reset);
 
     testString = "";
     int lineNum = 0;
@@ -190,19 +220,6 @@ void runTest(int id, std::string filename, std::string output)
 }
 
 int main(void) {
-    std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> extCommands;
-    extCommands["FUNC1()"] = func1;
-    extCommands["FUNC2()"] = func2;
-    extCommands["FUNC3()"] = func3;
-
-    DuckyInterpreter ducky = DuckyInterpreter(
-        delay, 
-        readLineFromFile, 
-        keyboard_press, 
-        keyboard_release, 
-        changeLEDState, 
-        waitForButton, 
-        changeUSBMode);
 
     runTest(1, "examples/basic.txt", "D5000P4R4");
     runTest(2, "examples/basic2.txt", "D3P225P11R11R225P8R8P15R15P15R15P18R18P225P30R30R225P40R40");
@@ -214,6 +231,7 @@ int main(void) {
     runTest(8, "examples/if_with_function_call.txt", "FUNC1P4R4FUNC3P5R5");
     runTest(9, "examples/complex_if.txt", "P4R4P4R4");
     runTest(10, "examples/usb.txt", "HID0x05ac_0x021e_HAK5_DUCKY_1337HID0x0000_0x0000_USB Input Device_USB Input Device_111111111111STORAGE0x0000_0x0000_USB Input Device_USB Input Device_111111111111HID_STORAGE0x0000_0x0000_USB Input Device_USB Input Device_111111111111");
+    runTest(11, "examples/while_loops.txt", "D1FUNC1FUNC2FUNC1FUNC1FUNC2FUNC1FUNC2FUNC1FUNC2FUNC1FUNC2D2D3");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

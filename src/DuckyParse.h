@@ -17,6 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <functional>
 #include <string>
 #include <vector>
+#include <stack>
 
 #include "Logging.h"
 
@@ -141,10 +142,12 @@ class DuckyInterpreter {
         std::function<void()> _keyboardReleaseFunc;  
         std::function<void(bool, uint8_t, uint8_t, uint8_t, uint8_t)> _changeLEDStateFunc;  
         std::function<void()> _waitForButtonPressFunc;  
-        std::function<void(DuckyInterpreter::USB_MODE&, const uint16_t&, const uint16_t&, const std::string&, const std::string&, const std::string&)> _changeModeFunc;  
+        std::function<void(DuckyInterpreter::USB_MODE&, const uint16_t&, const uint16_t&, const std::string&, const std::string&, const std::string&)> _changeModeFunc;
+        std::function<void()> _reset;
         std::unordered_map<std::string, std::function<bool(std::string)>> _commandMap;
         std::unordered_map<std::string, std::string> _constants;
         std::unordered_map<std::string, int> _variables;
+        std::stack<int> _whileLoopLineNumbers;
 
         std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
             {"a", USBKeyDefinition(0x04) },
@@ -346,6 +349,8 @@ class DuckyInterpreter {
         USBKeyDefinition getUSBKeyDefinition(const std::string&);
         bool performKeyPressesForList(const std::vector<std::pair<bool, uint8_t>>&);
         int handleIF(const std::string&, int, std::string&, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>>&);
+        int handleWHILE(const std::string &, int , std::string& , std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
+        bool evaluateStatement(std::string&, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
         std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
         int evaluate(const std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
         inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
@@ -358,7 +363,9 @@ class DuckyInterpreter {
                      std::function<void()> keyboardReleaseFunc,
                      std::function<void(bool, uint8_t, uint8_t, uint8_t, uint8_t)> changeLEDStateFunc,
                      std::function<void()> waitForButtonPressFunc,
-                     std::function<void(DuckyInterpreter::USB_MODE&, const uint16_t&, const uint16_t&, const std::string&, const std::string&, const std::string&)> changeModeFunc);
+                     std::function<void(DuckyInterpreter::USB_MODE&, const uint16_t&, const uint16_t&, const std::string&, const std::string&, const std::string&)> changeModeFunc,
+                     std::function<void()> reset
+                     );
   
         int Execute(const std::string& filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>>& extCommands);
 };  
