@@ -93,6 +93,7 @@ int main(void) {
         changeUSBMode,
         reset);
 
+    std::vector<std::function<std::pair<std::string, std::string>()>> consts;
     std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> extCommands;
     extCommands["FIRE_MISSLES"] = fire_missles_custom_function;
     extCommands["FLASH_WARNING()"] = flash_warning_custom_function;
@@ -100,7 +101,7 @@ int main(void) {
     int lineNum = 0;
     do
     {
-        lineNum = ducky.Execute("put your read filename here", lineNum, extCommands);
+        lineNum = ducky.Execute("put your read filename here", lineNum, extCommands, consts);
     } while (lineNum != DuckyInterpreter::END_OF_FILE && lineNum != DuckyInterpreter::SCRIPT_ERROR);
 
     if (lineNum == DuckyInterpreter::SCRIPT_ERROR)
