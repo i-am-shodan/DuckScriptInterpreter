@@ -192,12 +192,17 @@ int trueOnce(const std::string& str, std::unordered_map<std::string, std::string
 void runTest(int id, std::string filename, std::string output)
 {
     std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> extCommands;
+    std::vector<std::function<std::pair<std::string, std::string>()>> consts;
     extCommands["FUNC1()"] = func1;
     extCommands["FUNC2()"] = func2;
     extCommands["FUNC3()"] = func3;
     extCommands["TRUE_FIVE_TIMES()"] = trueFiveTimes;
     extCommands["NEVER_TRUE()"] = neverTrue;
     extCommands["TRUE_ONCE()"] = trueOnce;
+
+    consts.emplace_back([] {
+        return std::pair("#DYNAMICVAR1", "a");
+    });
 
     DuckyInterpreter ducky = DuckyInterpreter(
         delay, 
@@ -213,7 +218,7 @@ void runTest(int id, std::string filename, std::string output)
     int lineNum = 0;
     do
     {
-        lineNum = ducky.Execute(filename, lineNum, extCommands);
+        lineNum = ducky.Execute(filename, lineNum, extCommands, consts);
     } while (lineNum != DuckyInterpreter::END_OF_FILE && lineNum != DuckyInterpreter::SCRIPT_ERROR);
 
     if (lineNum == DuckyInterpreter::END_OF_FILE && testString == output) { printf("[%d] - PASSED\n", id); } else { printf("[%d] - FAILED\n", id); }     
@@ -232,6 +237,7 @@ int main(void) {
     runTest(9, "examples/complex_if.txt", "P4R4P4R4");
     runTest(10, "examples/usb.txt", "HID0x05ac_0x021e_HAK5_DUCKY_1337HID0x0000_0x0000_USB Input Device_USB Input Device_111111111111STORAGE0x0000_0x0000_USB Input Device_USB Input Device_111111111111HID_STORAGE0x0000_0x0000_USB Input Device_USB Input Device_111111111111");
     runTest(11, "examples/while_loops.txt", "D1FUNC1FUNC2FUNC1FUNC1FUNC2FUNC1FUNC2FUNC1FUNC2FUNC1FUNC2D2D3");
+    runTest(12, "examples/constants_are_replaced_with_runtime_defined_values.txt", "P4R4");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

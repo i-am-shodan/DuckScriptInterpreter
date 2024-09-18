@@ -771,7 +771,7 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, s
 
 // -1 error
 //
-int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, std::vector<std::function<std::pair<std::string, std::string>()>>& userDefinedConstValues)
 {
     // todo do we want to clear variables here, might be good to have some persistence
 
@@ -803,7 +803,12 @@ int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::
         {
             line = replaceAllOccurrences(line, constant.first, constant.second);
         }
-
+        for (const auto &userDefinedFunction : userDefinedConstValues)
+        {
+            const auto& constant = userDefinedFunction();
+            line = replaceAllOccurrences(line, constant.first, constant.second);
+        }
+        
         string command = line.substr(0, std::min(line.find(' '), line.find('-')));
         rtrim(command);
         LOG(Log::LOG_DEBUG, "COMMAND = '%s'\r\n", command.c_str());
@@ -832,7 +837,7 @@ int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::
                 lineNumber = _whileLoopLineNumbers.top();
                 _whileLoopLineNumbers.pop();
                 LOG(Log::LOG_DEBUG, "Jumping to line '%d'\r\n", lineNumber);
-                return Execute(filePath, lineNumber, extCommands);
+                return Execute(filePath, lineNumber, extCommands, userDefinedConstValues);
             }
         }
         else if (line.substr(0, RestartPayload.size()) == RestartPayload) // need to handle this cmd here as its changing the line number

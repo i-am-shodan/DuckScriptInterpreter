@@ -367,7 +367,7 @@ class DuckyInterpreter {
                      std::function<void()> reset
                      );
   
-        int Execute(const std::string& filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>>& extCommands);
+        int Execute(const std::string& filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>>& extCommands, std::vector<std::function<std::pair<std::string, std::string>()>>& userDefinedConstValues);
 };  
 
 inline DuckyInterpreter::USB_MODE operator|(DuckyInterpreter::USB_MODE a, DuckyInterpreter::USB_MODE b) {
