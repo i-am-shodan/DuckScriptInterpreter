@@ -219,7 +219,7 @@ DuckyInterpreter::DuckyInterpreter(
     {
         bool ret = true;
         LOG(Log::LOG_DEBUG, "STRING arg = %s\n", arg.c_str());
-        for (char c : arg)
+        for (const char c : arg)
         {
             LOG(Log::LOG_DEBUG, "Trying to print '%c'\n", c);
             const std::string mystring = std::string(1, c);
@@ -236,6 +236,7 @@ DuckyInterpreter::DuckyInterpreter(
             {
                 ret = false;
                 LOG(Log::LOG_ERROR, "Got a invalid key\n");
+                break;
             }
         }
         return ret;
@@ -248,9 +249,20 @@ DuckyInterpreter::DuckyInterpreter(
         if (ret)
         {
             const auto keyText = std::string("ENTER");
-            const auto key = this->getUSBKeyDefinition(keyText);
-            this->_keyboardPressFunc((uint8_t)key.modifier, key.hidCode, 0, 0, 0, 0, 0);
-            this->_keyboardReleaseFunc();
+            auto key = this->getUSBKeyDefinition(keyText);
+            if (key.isValid())
+            {
+                this->_keyboardPressFunc((uint8_t)key.modifier, key.hidCode, 0, 0, 0, 0, 0);
+                this->_keyboardReleaseFunc();
+            }
+            else
+            {
+                LOG(Log::LOG_ERROR, "Got a invalid key\n");
+            }
+        }
+        else
+        {
+            LOG(Log::LOG_ERROR, "Got a invalid key\n");
         }
         return ret;
     };
