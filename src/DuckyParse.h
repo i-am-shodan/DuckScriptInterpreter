@@ -233,6 +233,9 @@ class DuckyInterpreter {
             {"{", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2f ) },
             {"]", USBKeyDefinition(0x30) },
             {"}", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x30 ) },
+            {"\\", USBKeyDefinition(0x31) },
+            {"|", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x31 ) },
+
             {";", USBKeyDefinition(0x33) },
             {":", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x33 ) },
             {"'", USBKeyDefinition(0x34) },
