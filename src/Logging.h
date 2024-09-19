@@ -10,34 +10,43 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #pragma once
 
 // Define the logging macro
-#ifdef LOGGING
-#include <cstdarg>
-
-#define LOG(...) Log::Write(__VA_ARGS__)
+#ifdef DUCKY_CUSTOM_LOG
+    extern void DuckyInterpreterLog(uint8_t level, const char *format, ...);
+    #define LOG(...) DuckyInterpreterLog(__VA_ARGS__)
+#elif DUCKY_LOG_INTERNAL
+    #define LOG(...) Log::Write(__VA_ARGS__)
 #else
-#define LOG(...) ((void)0) // Define as void if LOGGING is not present
+    #define LOG(...) ((void)0) // Define as void if LOGGING is not present
 #endif
 
-#ifdef LOGGING
-class Log {
-public:
-    enum LogLevel {
-        LOG_DEBUG = 0,
-        LOG_INFO = 1,
-        LOG_WARNING = 2,
-        LOG_ERROR = 3
-    };
+#if DUCKY_LOG_INTERNAL
+    #include <cstdarg>
+#endif
 
-    static LogLevel DefaultLogLevel;
-
-    static void Write(LogLevel level, const char* format, ...) {
-        if ((uint8_t)level >= (uint8_t)Log::LOG_WARNING)
+namespace Ducky
+{
+    class Log
+    {
+    public:
+        enum LogLevel : uint8_t
         {
-            va_list args;
-            va_start(args, format);
-            vprintf(format, args);
-            va_end(args);
+            LOG_DEBUG = 0,
+            LOG_INFO = 1,
+            LOG_WARNING = 2,
+            LOG_ERROR = 3
+        };
+
+#if DUCKY_LOG_INTERNAL
+        static void Write(LogLevel level, const char *format, ...)
+        {
+            if ((uint8_t)level >= (uint8_t)Log::LOG_WARNING)
+            {
+                va_list args;
+                va_start(args, format);
+                vprintf(format, args);
+                va_end(args);
+            }
         }
-    }
-};
 #endif
+    };
+}

@@ -1,5 +1,3 @@
-#define LOGGING
-
 #include <string>
 #include <vector>
 
