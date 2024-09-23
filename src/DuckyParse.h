@@ -338,6 +338,12 @@ class DuckyInterpreter {
             GTE,
             LT,
             LTE,
+            ASSIGN,
+            ADD,
+            SUBTRACT,
+            MULTIPLY,
+            DIVIDE,
+            MOD,
         };
 
         std::unordered_map<std::string, DuckyScriptOperator> operatorMap = {  
@@ -347,6 +353,12 @@ class DuckyInterpreter {
             {">=", DuckyScriptOperator::GTE},
             {"<", DuckyScriptOperator::LT},
             {"<=", DuckyScriptOperator::LTE},
+            {"=", DuckyScriptOperator::ASSIGN},
+            {"+", DuckyScriptOperator::ADD},
+            {"-", DuckyScriptOperator::SUBTRACT},
+            {"*", DuckyScriptOperator::MULTIPLY},
+            {"/", DuckyScriptOperator::DIVIDE},
+            {"%", DuckyScriptOperator::MOD}
         };
 
         USBKeyDefinition getUSBKeyDefinition(const std::string&);
@@ -355,9 +367,10 @@ class DuckyInterpreter {
         int handleWHILE(const std::string &, int , std::string& , std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
         bool evaluateStatement(std::string&, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
         std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
-        int evaluate(const std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
+        int evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
         inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
         int skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0);
+        bool assignToVariable(const std::string& variableName, std::string& args, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
   
     public:  
         DuckyInterpreter(

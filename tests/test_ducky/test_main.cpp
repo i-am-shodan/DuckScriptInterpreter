@@ -239,6 +239,7 @@ int main(void) {
     runTest(11, "examples/while_loops.txt", "D1FUNC1FUNC2FUNC1FUNC1FUNC2FUNC1FUNC2FUNC1FUNC2FUNC1FUNC2D2D3");
     runTest(12, "examples/constants_are_replaced_with_runtime_defined_values.txt", "P4R4");
     runTest(13, "examples/if_else.txt", "P4R4P4R4P4R4P4R4P4R4");
+    runTest(13, "examples/variables.txt", "P4R4P4R4P4R4");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

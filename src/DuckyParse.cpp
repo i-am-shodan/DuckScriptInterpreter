@@ -13,7 +13,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // BUTTON_DEF - function when button is pressed
 // DISABLE_BUTTON
 // ENABLE_BUTTON
-// VAR
 // RANDOM...
 // HOLD RELEASE
 // STOP_PAYLOAD
@@ -209,6 +208,40 @@ DuckyInterpreter::DuckyInterpreter(
       _changeModeFunc(changeModeFunc),
       _reset(reset)
 {
+
+    _commandMap["VAR"] = [this](string line)
+    {
+        const auto args = splitString(line);
+
+        if (args.size() != 3 || args[1] != "=")
+        {
+            LOG(Log::LOG_ERROR, "Invalid variable declaration %d\n", args.size());
+            return false;
+        }
+
+        auto varName = args[0];
+        auto varValue = args[2];
+
+        int intValue = 0;
+
+        if (varValue == "TRUE")
+        {
+            intValue = 1;
+        }
+        else if (varValue == "FALSE")
+        {
+            intValue = 0;
+        }
+        else
+        {
+            intValue = stoi(varValue);
+        }
+
+        _variables[varName] = intValue;
+        LOG(Log::LOG_DEBUG, "Added variable %s = %d\n", varName.c_str(), intValue);
+
+        return true;
+    };
 
     _commandMap["DELAY"] = [this](string arg)
     {
@@ -484,6 +517,10 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
 
         return std::make_tuple(lhs, operatorMap[op], rhs);
     }
+    else if (words.size() == 1)
+    {
+        return std::make_tuple(words[0], DuckyInterpreter::DuckyScriptOperator::EQ, "1");
+    }
     else
     {
         LOG(Log::LOG_WARNING, "Unexpected conditions in IF statement '%s'\r\n", statement.c_str());
@@ -619,9 +656,21 @@ static std::string lowerCaseString(const std::string &str)
     return result;
 }
 
-int DuckyInterpreter::evaluate(const std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+int DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
     LOG(Log::LOG_DEBUG, "\t\tStatement = '%s'\r\n", str.c_str());
+
+    for (const auto &pair : _variables)
+    {
+        size_t pos = str.find(pair.first);
+        while (pos != std::string::npos)
+        {
+            auto replacementText = std::to_string(pair.second);
+
+            str.replace(pos, pair.first.length(), replacementText);
+            pos = str.find(pair.first, pos + replacementText.length());
+        }
+    }
 
     // first try to evaluate any functions in the LHS or RHS
     if (extCommands.find(str) != extCommands.cend())
@@ -631,7 +680,7 @@ int DuckyInterpreter::evaluate(const std::string &str, std::unordered_map<std::s
     }
     else
     {
-        LOG(Log::LOG_DEBUG, "\t\tEvaluating text expression\r\n", str.c_str());
+        LOG(Log::LOG_DEBUG, "\t\tEvaluating text expression: %s\r\n", str.c_str());
         const auto &lower = lowerCaseString(str);
         if (lower == "true")
         {
@@ -856,12 +905,51 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
     return lineNumber;
 }
 
+bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::string &arg, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+{
+    LOG(Log::LOG_DEBUG, "Assigning expression %s to variable %s\r\n", arg.c_str(), variableName.c_str());
+    int currentValue = _variables[variableName];
+
+    for (auto &condition : parseCondition(arg))
+    {
+        int lhsValue = this->evaluate(std::get<0>(condition), extCommands);
+        int rhsValue = this->evaluate(std::get<2>(condition), extCommands);
+        auto op = std::get<1>(condition);
+        LOG(Log::LOG_DEBUG, "Processing condition LHS=%d, OP=%d, RHS=%d\r\n", lhsValue, op, rhsValue);
+
+        switch (op)
+        {
+        case DuckyScriptOperator::ADD:
+            currentValue = lhsValue + rhsValue;
+            break;
+        case DuckyScriptOperator::SUBTRACT:
+            currentValue = lhsValue - rhsValue;
+            break;
+        case DuckyScriptOperator::MULTIPLY:
+            currentValue = lhsValue * rhsValue;
+            break;
+        case DuckyScriptOperator::DIVIDE:
+            currentValue = lhsValue / rhsValue;
+            break;
+        case DuckyScriptOperator::MOD:
+            currentValue = lhsValue % rhsValue;
+            break;
+        default:
+            LOG(Log::LOG_DEBUG, "Invalid operator\r\n");
+            return SCRIPT_ERROR;
+        }
+    }
+
+    LOG(Log::LOG_DEBUG, "Setting variable %s to %d\r\n", variableName.c_str(), currentValue);
+    _variables[variableName] = currentValue;
+
+    return true;
+}
+
 // -1 error
 //
 int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
 {
-    // todo do we want to clear variables here, might be good to have some persistence
-
     if (lineNumber < 0)
     {
         LOG(Log::LOG_DEBUG, "Bad line number %d\r\n", lineNumber);
@@ -949,6 +1037,32 @@ int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::
 
             LOG(Log::LOG_DEBUG, "arg = '%s'\n", arg.c_str());
             commandExitCode = _commandMap[command](arg);
+        }
+        else if (line.size() >= 2 && line[0] == '$')
+        {
+            LOG(Log::LOG_DEBUG, "Variable assignment\r\n");
+            const auto variableName = command;
+            if (_variables.find(variableName) == _variables.cend())
+            {
+                LOG(Log::LOG_ERROR, "Variable not declared %s\r\n", variableName.c_str());
+                commandExitCode = false;
+            }
+            else
+            {
+                auto args = line.substr(variableName.size() + 1);
+                ltrim(args);
+                if (args[0] == '=')
+                {
+                    args = args.substr(1);
+                    ltrim(args);
+                    commandExitCode = assignToVariable(variableName, args, extCommands);
+                }
+                else
+                {
+                    LOG(Log::LOG_DEBUG, "Variable assignment error %s\r\n", args.c_str());
+                    commandExitCode = false;
+                }
+            }
         }
         else if (std::find(systemKeys.begin(), systemKeys.end(), command) != systemKeys.end())
         {

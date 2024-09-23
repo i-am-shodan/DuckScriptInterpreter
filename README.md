@@ -30,6 +30,7 @@ Include the DuckScriptInterpreter library in your project and implement the requ
 * LED functions including LED_ON, LED_OFF, LED_R ,LEDG
 * REM
 * IF/ELSE IF
+* VAR
 * WHILE
 * DEFINE
 * ATTACKMODE
@@ -41,7 +42,6 @@ Include the DuckScriptInterpreter library in your project and implement the requ
 * BUTTON_DEF
 * DISABLE_BUTTON
 * ENABLE_BUTTON
-* VAR
 * RANDOM
 * HOLD RELEASE
 * STOP_PAYLOAD

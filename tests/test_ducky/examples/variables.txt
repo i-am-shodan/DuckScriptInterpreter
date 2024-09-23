@@ -1,0 +1,17 @@
+VAR $FILE_INDEX = 0
+$FILE_INDEX = ( $FILE_INDEX + 1 )
+IF ($FILE_INDEX = 1)
+    STRING a
+END_IF
+
+VAR $TEMP = TRUE
+IF ($TEMP)
+    STRING a
+END_IF
+
+VAR $A = 100
+VAR $B = 1337
+
+IF ( $A < $B ) THEN
+  STRING a
+END_IF
