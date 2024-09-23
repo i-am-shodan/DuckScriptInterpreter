@@ -29,10 +29,12 @@ Include the DuckScriptInterpreter library in your project and implement the requ
 * WAIT_FOR_BUTTON_PRESS
 * LED functions including LED_ON, LED_OFF, LED_R ,LEDG
 * REM
-* IF
+* IF/ELSE IF
 * WHILE
 * DEFINE
 * ATTACKMODE
+* RESTART_PAYLOAD
+* RESET
 
 ### Planned Functionality but not yet implemented
 * INJECT_MOD WINDOWS
@@ -40,12 +42,9 @@ Include the DuckScriptInterpreter library in your project and implement the requ
 * DISABLE_BUTTON
 * ENABLE_BUTTON
 * VAR
-* ELSE
 * RANDOM
 * HOLD RELEASE
-* RESTART_PAYLOAD
 * STOP_PAYLOAD
-* RESET
 * JITTER
 * WAIT_FOR_CAPS_ON
 * SAVE_HOST_KEYBOARD_LOCK_STATE

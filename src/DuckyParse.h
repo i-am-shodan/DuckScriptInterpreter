@@ -357,6 +357,7 @@ class DuckyInterpreter {
         std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
         int evaluate(const std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
         inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
+        int skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0);
   
     public:  
         DuckyInterpreter(

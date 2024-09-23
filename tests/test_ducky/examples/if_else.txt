@@ -1,0 +1,33 @@
+IF (5 < 3) THEN
+    STRING FAIL
+    IF (1 > 2) THEN
+        STRING FAIL
+    ELSE
+        STRING FAIL
+    END_IF
+ELSE
+    STRING a
+END_IF
+
+IF (2 > 5) THEN
+    STRING FAIL
+    IF (2 > 1) THEN
+        STRING FAIL
+    END_IF
+ELSE IF (6 > 5) THEN
+    STRING a
+    IF (1 < 2) THEN
+        STRING a
+    ELSE
+        STRING FAIL
+    END_IF
+    STRING a
+END_IF
+
+IF (2 > 5) THEN
+    STRING FAIL
+ELSE IF (5 > 5) THEN
+    STRING FAIL
+ELSE
+    STRING a
+END_IF

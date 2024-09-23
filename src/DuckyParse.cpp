@@ -14,11 +14,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // DISABLE_BUTTON
 // ENABLE_BUTTON
 // VAR
-// IF/ELSE
 // RANDOM...
 // HOLD RELEASE
 // STOP_PAYLOAD
-// RESET
 // JITTER
 // WAIT_FOR_CAPS_ON etc
 // SAVE_HOST_KEYBOARD_LOCK_STATE
@@ -78,10 +76,13 @@ constexpr const char *DuckyInterpreter::CAPSLOCK;
 constexpr const char *DuckyInterpreter::NUMLOCK;
 constexpr const char *DuckyInterpreter::SCROLLOCK;
 
-const std::string prefixIF = "IF ";  
-const std::string PrefixWHILE = "WHILE ";  
+const std::string prefixIF = "IF ";
+const std::string prefixEND_IF = "END_IF";
+const std::string prefixELSE_IF = "ELSE IF ";
+const std::string prefixELSE = "ELSE";
+const std::string PrefixWHILE = "WHILE ";
 const std::string EndWHILE = "END_WHILE";
-const std::string THENSuffix = " THEN";  
+const std::string THENSuffix = " THEN";
 const std::string RestartPayload = "RESTART_PAYLOAD";
 
 // trim from end (in place)
@@ -93,11 +94,11 @@ static inline void rtrim(std::string &s)
             s.end());
 }
 
-static inline void ltrim(std::string &s) {  
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {  
-        return !std::isspace(ch);  
-    }));  
-}  
+static inline void ltrim(std::string &s)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch)
+                                    { return !std::isspace(ch); }));
+}
 
 // Function to split a string into words
 std::vector<std::string> DuckyInterpreter::splitString(const std::string &input)
@@ -197,7 +198,7 @@ DuckyInterpreter::DuckyInterpreter(
     std::function<void()> keyboardReleaseFunc,
     std::function<void(bool, uint8_t, uint8_t, uint8_t, uint8_t)> changeLEDStateFunc,
     std::function<void()> waitForButtonPressFunc,
-    std::function<void(DuckyInterpreter::USB_MODE&, const uint16_t&, const uint16_t&, const std::string&, const std::string&, const std::string&)> changeModeFunc,
+    std::function<void(DuckyInterpreter::USB_MODE &, const uint16_t &, const uint16_t &, const std::string &, const std::string &, const std::string &)> changeModeFunc,
     std::function<void()> reset)
     : _delayFunc(delayFunc),
       _readLineFunc(readLineFunc),
@@ -397,7 +398,7 @@ DuckyInterpreter::DuckyInterpreter(
         // ATTACKMODE HID VID_046D PID_C31C
         // ATTACKMODE HID VID_05AC PID_021E MAN_HAK5 PROD_DUCKY SERIAL_1337
         // ATTACKMODE HID STORAGE MAN_HAK5 PROD_DUCKY SERIAL_RANDOM
-        
+
         // If no MAN, PROD and SERIAL parameters are specified, the USB Rubber Ducky will enumerate with the defaults "USB Input Device" (for both MAN and PROD) and a SERIAL of 111111111111.
         // If specified, the SERIAL_RANDOM parameter will use the pseudorandom number generator to select a unique 12 digit serial number. This is covered in greater detail in the section on randomization.
 
@@ -420,7 +421,7 @@ DuckyInterpreter::DuckyInterpreter(
             return false;
         }
 
-        for (const auto& keyword : keyWords)
+        for (const auto &keyword : keyWords)
         {
             if (keyword == "HID")
             {
@@ -436,27 +437,27 @@ DuckyInterpreter::DuckyInterpreter(
             }
             else if (keyword.substr(0, VIDPrefix.size()) == VIDPrefix)
             {
-                string hexString = keyword.substr(VIDPrefix.size(), std::min(keyword.find(' '), keyword.length() -1));
-                char* endPtr = nullptr;
+                string hexString = keyword.substr(VIDPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
+                char *endPtr = nullptr;
                 vid = strtol(hexString.c_str(), &endPtr, 16);
             }
             else if (keyword.substr(0, PIDPrefix.size()) == PIDPrefix)
             {
-                string hexString = keyword.substr(PIDPrefix.size(), std::min(keyword.find(' '), keyword.length() -1));
-                char* endPtr = nullptr;
+                string hexString = keyword.substr(PIDPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
+                char *endPtr = nullptr;
                 pid = strtol(hexString.c_str(), &endPtr, 16);
             }
             else if (keyword.substr(0, MANPrefix.size()) == MANPrefix)
             {
-                manufacturer = keyword.substr(MANPrefix.size(), std::min(keyword.find(' '), keyword.length() -1));
+                manufacturer = keyword.substr(MANPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
             }
             else if (keyword.substr(0, PRODPrefix.size()) == PRODPrefix)
             {
-                product = keyword.substr(PRODPrefix.size(), std::min(keyword.find(' '), keyword.length() -1));
+                product = keyword.substr(PRODPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
             }
             else if (keyword.substr(0, SERIALPrefix.size()) == SERIALPrefix)
             {
-                serial = keyword.substr(SERIALPrefix.size(), std::min(keyword.find(' '), keyword.length() -1));
+                serial = keyword.substr(SERIALPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
             }
             else
             {
@@ -490,9 +491,10 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
     }
 }
 
-std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string>> DuckyInterpreter::parseCondition(std::string &condition) {
-    std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> result;  
-    
+std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string>> DuckyInterpreter::parseCondition(std::string &condition)
+{
+    std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> result;
+
     LOG(Log::LOG_DEBUG, "\t\t\tDuckyInterpreter::parseCondition parsing line = '%s'\r\n", condition.c_str());
 
     ltrim(condition);
@@ -532,13 +534,13 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
                 LOG(Log::LOG_DEBUG, "\t\t\tnext statement = '%s'\r\n", statement.c_str());
                 // check if statement contains any ()
 
-                bool containsNoFurtherNesting = statement[0] != '(' && statement[statement.length() -1] != ')';
-                
+                bool containsNoFurtherNesting = statement[0] != '(' && statement[statement.length() - 1] != ')';
+
                 if (containsNoFurtherNesting == false)
                 {
                     LOG(Log::LOG_DEBUG, "\t\t\tContains further nesting, parsing again\r\n", statement.c_str());
                     auto newResult = parseCondition(statement);
-                    result.insert(result.end(), newResult.begin(), newResult.end());  
+                    result.insert(result.end(), newResult.begin(), newResult.end());
                 }
                 else
                 {
@@ -558,10 +560,11 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
     return result;
 }
 
-static std::string extractCondition(const std::string &line) {  
+static std::string extractCondition(const std::string &line)
+{
     // WHILE (TRUE_FIVE_TIMES() == TRUE)
     // IF (FUNC3() == FALSE) THEN
-  
+
     std::string condition = line;
 
     std::string prefix;
@@ -576,6 +579,11 @@ static std::string extractCondition(const std::string &line) {
         prefix = prefixIF;
         suffix = THENSuffix;
     }
+    else if (line.substr(0, prefixELSE_IF.size()) == prefixELSE_IF)
+    {
+        prefix = prefixELSE_IF;
+        suffix = THENSuffix;
+    }
     else
     {
         // todo we should throw an exception here, or change the error code
@@ -585,28 +593,31 @@ static std::string extractCondition(const std::string &line) {
 
     if (prefix.size() != 0)
     {
-        if (condition.substr(0, prefix.size()) == prefix) {  
-            condition = condition.substr(prefix.size());  
-        }  
+        if (condition.substr(0, prefix.size()) == prefix)
+        {
+            condition = condition.substr(prefix.size());
+        }
     }
 
     if (suffix.size() != 0)
     {
-        if (condition.substr(condition.size() - suffix.size()) == suffix) {  
-            condition = condition.substr(0, condition.size() - suffix.size());  
+        if (condition.substr(condition.size() - suffix.size()) == suffix)
+        {
+            condition = condition.substr(0, condition.size() - suffix.size());
         }
     }
-  
-    return condition;  
-}  
 
-static std::string lowerCaseString(const std::string &str) {  
-    std::string result = str;  
-    std::transform(result.begin(), result.end(), result.begin(),  
-        [](unsigned char c){ return std::tolower(c); }  
-    );  
-    return result;  
-}  
+    return condition;
+}
+
+static std::string lowerCaseString(const std::string &str)
+{
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c)
+                   { return std::tolower(c); });
+    return result;
+}
 
 int DuckyInterpreter::evaluate(const std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
@@ -621,7 +632,7 @@ int DuckyInterpreter::evaluate(const std::string &str, std::unordered_map<std::s
     else
     {
         LOG(Log::LOG_DEBUG, "\t\tEvaluating text expression\r\n", str.c_str());
-        const auto& lower = lowerCaseString(str);
+        const auto &lower = lowerCaseString(str);
         if (lower == "true")
         {
             return 1;
@@ -638,7 +649,7 @@ int DuckyInterpreter::evaluate(const std::string &str, std::unordered_map<std::s
     }
 }
 
-bool DuckyInterpreter::evaluateStatement(std::string& line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
     LOG(Log::LOG_DEBUG, "Handling statement\r\n");
     auto conditionStr = extractCondition(line);
@@ -646,7 +657,7 @@ bool DuckyInterpreter::evaluateStatement(std::string& line, std::unordered_map<s
 
     bool conditionToCheck = true;
 
-    for (auto& condition : parseCondition(conditionStr))
+    for (auto &condition : parseCondition(conditionStr))
     {
         int lhsValue = this->evaluate(std::get<0>(condition), extCommands);
         int rhsValue = this->evaluate(std::get<2>(condition), extCommands);
@@ -654,26 +665,26 @@ bool DuckyInterpreter::evaluateStatement(std::string& line, std::unordered_map<s
 
         switch (op)
         {
-            case DuckyScriptOperator::EQ:
-                conditionToCheck &= lhsValue == rhsValue;
-                break;
-            case DuckyScriptOperator::NE:
-                conditionToCheck &= lhsValue != rhsValue;
-                break;
-            case DuckyScriptOperator::GT:
-                conditionToCheck &= lhsValue > rhsValue;
-                break;
-            case DuckyScriptOperator::GTE:
-                conditionToCheck &= lhsValue >= rhsValue;
-                break;
-            case DuckyScriptOperator::LT:
-                conditionToCheck &= lhsValue < rhsValue;
-                break;
-            case DuckyScriptOperator::LTE:
-                conditionToCheck &= lhsValue <= rhsValue;
-                break;
-            default:
-                break;
+        case DuckyScriptOperator::EQ:
+            conditionToCheck &= lhsValue == rhsValue;
+            break;
+        case DuckyScriptOperator::NE:
+            conditionToCheck &= lhsValue != rhsValue;
+            break;
+        case DuckyScriptOperator::GT:
+            conditionToCheck &= lhsValue > rhsValue;
+            break;
+        case DuckyScriptOperator::GTE:
+            conditionToCheck &= lhsValue >= rhsValue;
+            break;
+        case DuckyScriptOperator::LT:
+            conditionToCheck &= lhsValue < rhsValue;
+            break;
+        case DuckyScriptOperator::LTE:
+            conditionToCheck &= lhsValue <= rhsValue;
+            break;
+        default:
+            break;
         }
     }
 
@@ -682,49 +693,63 @@ bool DuckyInterpreter::evaluateStatement(std::string& line, std::unordered_map<s
 
 // the job of this function is to evaluate the condition and if true to increment the line number
 // if false we read until END_IF
-int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std::string& line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
     const bool conditionToCheck = evaluateStatement(line, extCommands);
 
     if (conditionToCheck)
     {
-        LOG(Log::LOG_DEBUG, "\tIF evaluated to success, moving to next line\r\n");
+        LOG(Log::LOG_DEBUG, "\tIF..ELSE evaluated to success, moving to next line %d\r\n", lineNumber);
         // we can execute inside the IF statement
         return lineNumber + 1;
     }
     else
     {
-        LOG(Log::LOG_DEBUG, "\tEvaluation was false, skipping to end\r\n");
+        LOG(Log::LOG_DEBUG, "\tEvaluation was false, skipping to next statement\r\n");
 
-        // need to skip instructions until we hit END_IF
-        while (true)
+        // need to skip instructions until we hit ELSE, ELSE IF or END_IF
+        lineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixELSE_IF, prefixELSE, prefixEND_IF});
+
+        if (lineNumber == SCRIPT_ERROR)
         {
-            // increment line and read
-            lineNumber++;
-            line = _readLineFunc(filePath, lineNumber);
+            LOG(Log::LOG_ERROR, "Could not find end of IF statement");
+            return SCRIPT_ERROR;
+        }
 
-            if (line.empty())
-            {
-                LOG(Log::LOG_DEBUG, "Error EOF while looking for END_IF\r\n");
-                return SCRIPT_ERROR;
-            }
+        LOG(Log::LOG_DEBUG, "\tSkipped until %d\r\n", lineNumber);
 
-            // sanitise
-            ltrim(line);
-            rtrim(line);
+        line = _readLineFunc(filePath, lineNumber);
 
-            const std::string prefix = "END_IF";  
-            if (line.empty() || line.substr(0, prefix.size()) == prefix)
-            {
-                break;
-            }
+        ltrim(line);
+        rtrim(line);
+
+        if (line.empty())
+        {
+            LOG(Log::LOG_DEBUG, "Error EOF while looking for END_IF\r\n");
+            return SCRIPT_ERROR;
+        }
+
+        if (line.substr(0, prefixEND_IF.size()) == prefixEND_IF)
+        {
+            return lineNumber + 1;
+        }
+        else if (line.substr(0, prefixELSE_IF.size()) == prefixELSE_IF)
+        {
+            LOG(Log::LOG_DEBUG, "\tFound ELSE IF to evaluate on line %d\r\n", lineNumber);
+            return handleIF(filePath, lineNumber, line, extCommands);
+        }
+        else if (line.substr(0, prefixELSE.size()) == prefixELSE)
+        {
+            LOG(Log::LOG_DEBUG, "\tELSE found, moving to next line\r\n");
+            // we can execute inside the IF statement
+            return lineNumber + 1;
         }
     }
 
     return lineNumber;
 }
 
-int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, std::string& line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
     const bool conditionToCheck = evaluateStatement(line, extCommands);
 
@@ -737,54 +762,103 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, s
     }
     else
     {
-        LOG(Log::LOG_DEBUG, "\tEvaluation was false, skipping to end\r\n");
+        // need to skip instructions until we hit END_WHILE
+        lineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE});
 
-        int nestedWhileLoopCount = 1;
-
-        // need to skip instructions until we hit END_WHILE whilst making sure that we aren't
-        // using nested statements in our comparisions!
-        while (true)
+        if (lineNumber == SCRIPT_ERROR)
         {
-            // increment line and read
-            lineNumber++;
-            line = _readLineFunc(filePath, lineNumber);
-
-            if (line.empty())
-            {
-                LOG(Log::LOG_DEBUG, "\tError EOF while looking for END_WHILE\r\n");
-                return SCRIPT_ERROR;
-            }
-
-            // sanitise
-            ltrim(line);
-            rtrim(line);
-
-            if (line.substr(0, PrefixWHILE.size()) == PrefixWHILE) 
-            {
-                LOG(Log::LOG_DEBUG, "\tFound inner WHILE statement %d\r\n", lineNumber);
-                nestedWhileLoopCount++;
-            }
-            if (line.empty() || line.substr(0, EndWHILE.size()) == EndWHILE)
-            {
-                LOG(Log::LOG_DEBUG, "\tFound end of inner WHILE statement %d\r\n", lineNumber);
-                nestedWhileLoopCount--;
-
-                if (nestedWhileLoopCount <= 0)
-                {
-                    break;
-                }
-            }
+            LOG(Log::LOG_DEBUG, "\tError EOF while looking for END_WHILE\r\n");
+            return SCRIPT_ERROR;
         }
 
-        LOG(Log::LOG_DEBUG, "\tEnd calculated as %d\r\n", lineNumber);
-        
         return lineNumber + 1;
     }
 }
 
+int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount)
+{
+    LOG(Log::LOG_DEBUG, "\tSkipping lines until condition(s) is met\r\n");
+
+    // need to skip instructions until we hit endCondition whilst making sure that we aren't
+    // using any statements that would cause nesting with our comparisions!
+
+    while (true)
+    {
+        // increment line and read
+        lineNumber++;
+        auto line = _readLineFunc(filePath, lineNumber);
+
+        // sanitise
+        ltrim(line);
+        rtrim(line);
+
+        if (line.empty())
+        {
+            LOG(Log::LOG_DEBUG, "\tError EOF while looking for end condition\r\n");
+            return SCRIPT_ERROR;
+        }
+
+        bool incrementLineNumber = false;
+
+        for (const auto &nestCondition : nestingConditions)
+        {
+            if (line.substr(0, nestCondition.size()) == nestCondition)
+            {
+                nestingCount++;
+                incrementLineNumber = true;
+                LOG(Log::LOG_DEBUG, "\tFound inner nesting condition (%s) line %d, increasing nesting count to %d\r\n", nestCondition.c_str(), lineNumber, nestingCount);
+                continue;
+            }
+        }
+
+        if (incrementLineNumber)
+        {
+            continue;
+        }
+
+        if (nestingCount > 0)
+        {
+            for (const auto &endCondition : endConditions)
+            {
+                if (line.substr(0, endCondition.size()) == endCondition)
+                {
+                    nestingCount--;
+                    incrementLineNumber = true;
+                    LOG(Log::LOG_DEBUG, "\tFound end condition (%s) line %d, decrementing nesting count to %d\r\n", endCondition.c_str(), lineNumber, nestingCount);
+                    continue;
+                }
+            }
+        }
+
+        if (incrementLineNumber)
+        {
+            continue;
+        }
+
+        if (nestingCount == 0)
+        {
+            for (const auto &matchCondition : matchingConditions)
+            {
+                if (line.substr(0, matchCondition.size()) == matchCondition)
+                {
+                    LOG(Log::LOG_DEBUG, "\tFound matching statement (%s) line %d\r\n", matchCondition.c_str(), lineNumber);
+                    nestingCount--;
+
+                    if (nestingCount <= 0)
+                    {
+                        return lineNumber;
+                    }
+                }
+            }
+        }
+    }
+
+    return lineNumber;
+}
+
 // -1 error
 //
-int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, std::vector<std::function<std::pair<std::string, std::string>()>>& userDefinedConstValues)
+int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
 {
     // todo do we want to clear variables here, might be good to have some persistence
 
@@ -818,26 +892,26 @@ int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::
         }
         for (const auto &userDefinedFunction : userDefinedConstValues)
         {
-            const auto& constant = userDefinedFunction();
+            const auto &constant = userDefinedFunction();
             line = replaceAllOccurrences(line, constant.first, constant.second);
         }
-        
+
         string command = line.substr(0, std::min(line.find(' '), line.find('-')));
         rtrim(command);
         LOG(Log::LOG_DEBUG, "COMMAND = '%s'\r\n", command.c_str());
 
         if (line.substr(0, prefixIF.size()) == prefixIF) // is this an IF statement, if so we handle lineNumber differently
-        {  
+        {
             // line starts with "IF "
             return handleIF(filePath, lineNumber, line, extCommands);
         }
         else if (line.substr(0, PrefixWHILE.size()) == PrefixWHILE) // is this an IF statement, if so we handle lineNumber differently
-        {  
+        {
             // line starts with "WHILE "
             return handleWHILE(filePath, lineNumber, line, extCommands);
         }
         else if (line.substr(0, EndWHILE.size()) == EndWHILE) // END_WHILE needs to pop stack and evaluate initial condition
-        {  
+        {
             // line starts with "END_WHILE"
             if (_whileLoopLineNumbers.size() == 0)
             {
@@ -852,6 +926,11 @@ int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::
                 LOG(Log::LOG_DEBUG, "Jumping to line '%d'\r\n", lineNumber);
                 return Execute(filePath, lineNumber, extCommands, userDefinedConstValues);
             }
+        }
+        else if (line.substr(0, prefixELSE.size()) == prefixELSE) // current execution has ended in a ELSE, we need to skip until END_IF
+        {
+            auto endIfConditions = std::vector<std::string>{prefixEND_IF};
+            lineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{prefixIF}, endIfConditions, endIfConditions);
         }
         else if (line.substr(0, RestartPayload.size()) == RestartPayload) // need to handle this cmd here as its changing the line number
         {
