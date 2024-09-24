@@ -382,7 +382,7 @@ DuckyInterpreter::DuckyInterpreter(
 
     _commandMap["RESET"] = [this](string arg)
     {
-        // do nothing
+        _reset();
         return true;
     };
 
