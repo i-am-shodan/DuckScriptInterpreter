@@ -191,6 +191,9 @@ int trueOnce(const std::string& str, std::unordered_map<std::string, std::string
 
 void runTest(int id, std::string filename, std::string output)
 {
+    count = 0;
+    set = false;
+
     std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> extCommands;
     std::vector<std::function<std::pair<std::string, std::string>()>> consts;
     extCommands["FUNC1()"] = func1;
@@ -241,6 +244,7 @@ int main(void) {
     runTest(13, "examples/if_else.txt", "P4R4P4R4P4R4P4R4P4R4");
     runTest(14, "examples/variables.txt", "P4R4P4R4P4R4");
     runTest(15, "examples/func_while.txt", "P4R4");
+    runTest(16, "examples/nested_statements.txt", "P4R4P4R4P4R4P4R4P4R4");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

@@ -1,0 +1,17 @@
+VAR $FILE_INDEX = 0
+
+WHILE ( TRUE_FIVE_TIMES() == TRUE )
+    STRING a
+
+    IF (TRUE_ONCE())
+        $FILE_INDEX = ( $FILE_INDEX + 1 )
+    ELSE IF (NEVER_TRUE())
+        STRING a
+
+        IF (BUTTON_LONG_PRESS() == 1)
+            STRING fail
+        ELSE
+            STRING fail
+        END_IF
+    END_IF
+END_WHILE

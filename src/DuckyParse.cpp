@@ -870,15 +870,15 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
         lineNumber++;
         auto line = _readLineFunc(filePath, lineNumber);
 
-        // sanitise
-        ltrim(line);
-        rtrim(line);
-
         if (line.empty())
         {
             LOG(Log::LOG_DEBUG, "\tError EOF while looking for end condition\r\n");
             return SCRIPT_ERROR;
         }
+
+        // sanitise
+        ltrim(line);
+        rtrim(line);
 
         bool incrementLineNumber = false;
 
