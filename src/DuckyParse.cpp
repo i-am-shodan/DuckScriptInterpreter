@@ -528,6 +528,15 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
     }
 }
 
+static std::string replaceString(std::string subject, const std::string& search, const std::string& replace) {
+    size_t pos = 0;
+    while ((pos = subject.find(search, pos)) != std::string::npos) {
+         subject.replace(pos, search.length(), replace);
+         pos += replace.length();
+    }
+    return subject;
+}
+
 std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string>> DuckyInterpreter::parseCondition(std::string &condition)
 {
     std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> result;
@@ -536,6 +545,8 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
 
     ltrim(condition);
     rtrim(condition);
+
+    const auto maskedString = replaceString(condition, "()", "XX");
 
     size_t statementStartPosition = 0;
     size_t statementEndPosition = std::string::npos;
@@ -547,11 +558,11 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
             statementStartPosition = pos;
             ++nestedBracketCount;
         }
-        else if (condition[pos] == '(')
+        else if (maskedString[pos] == '(')
         {
             ++nestedBracketCount;
         }
-        else if (condition[pos] == ')')
+        else if (maskedString[pos] == ')')
         {
             --nestedBracketCount;
 
@@ -564,7 +575,7 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
 
                 if (statement.length() < 5)
                 {
-                    LOG(Log::LOG_WARNING, "\t\t\tStatement is too short\r\n", statement.c_str());
+                    LOG(Log::LOG_WARNING, "\t\t\tStatement is too short %s\r\n", statement.c_str());
                     break;
                 }
 
@@ -591,6 +602,7 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
     if (statementEndPosition == std::string::npos)
     {
         // we didn't find any bracketed expressions
+        LOG(Log::LOG_DEBUG, "\t\t\tNo bracketed statement found for %s\r\n", condition.c_str());
         result.emplace_back(parseStatement(condition));
     }
 
@@ -623,9 +635,8 @@ static std::string extractCondition(const std::string &line)
     }
     else
     {
-        // todo we should throw an exception here, or change the error code
-        // doing nothing is unsafe
         LOG(Log::LOG_ERROR, "\t\tCannot extract condition for = '%s'\r\n", line.c_str());
+        return std::string();
     }
 
     if (prefix.size() != 0)
@@ -698,53 +709,69 @@ int DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string,
     }
 }
 
-bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, bool *conditionToCheck)
 {
     LOG(Log::LOG_DEBUG, "Handling statement\r\n");
     auto conditionStr = extractCondition(line);
+
+    if (conditionStr.length() == 0)
+    {
+        return false;
+    }
+
     LOG(Log::LOG_DEBUG, "\tCondition = '%s'\r\n", conditionStr.c_str());
 
-    bool conditionToCheck = true;
+    *conditionToCheck = true;
 
     for (auto &condition : parseCondition(conditionStr))
     {
-        int lhsValue = this->evaluate(std::get<0>(condition), extCommands);
-        int rhsValue = this->evaluate(std::get<2>(condition), extCommands);
+        auto lhsStr = std::get<0>(condition);
+        auto rhsStr = std::get<2>(condition);
         auto op = std::get<1>(condition);
+
+        LOG(Log::LOG_DEBUG, "\tEvaluating condition LHS = %s, OP = %d, RHS = %s\r\n", lhsStr.c_str(), op, rhsStr.c_str());
+        int lhsValue = this->evaluate(lhsStr, extCommands);
+        int rhsValue = this->evaluate(rhsStr, extCommands);
 
         switch (op)
         {
         case DuckyScriptOperator::EQ:
-            conditionToCheck &= lhsValue == rhsValue;
+            *conditionToCheck &= lhsValue == rhsValue;
             break;
         case DuckyScriptOperator::NE:
-            conditionToCheck &= lhsValue != rhsValue;
+            *conditionToCheck &= lhsValue != rhsValue;
             break;
         case DuckyScriptOperator::GT:
-            conditionToCheck &= lhsValue > rhsValue;
+            *conditionToCheck &= lhsValue > rhsValue;
             break;
         case DuckyScriptOperator::GTE:
-            conditionToCheck &= lhsValue >= rhsValue;
+            *conditionToCheck &= lhsValue >= rhsValue;
             break;
         case DuckyScriptOperator::LT:
-            conditionToCheck &= lhsValue < rhsValue;
+            *conditionToCheck &= lhsValue < rhsValue;
             break;
         case DuckyScriptOperator::LTE:
-            conditionToCheck &= lhsValue <= rhsValue;
+            *conditionToCheck &= lhsValue <= rhsValue;
             break;
         default:
             break;
         }
     }
 
-    return conditionToCheck;
+    return true;
 }
 
 // the job of this function is to evaluate the condition and if true to increment the line number
 // if false we read until END_IF
 int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
-    const bool conditionToCheck = evaluateStatement(line, extCommands);
+    bool conditionToCheck = false;
+
+    if (!evaluateStatement(line, extCommands, &conditionToCheck))
+    {
+        LOG(Log::LOG_ERROR, "Could not evaluate statement %s", line.c_str());
+        return SCRIPT_ERROR;
+    }
 
     if (conditionToCheck)
     {
@@ -800,7 +827,13 @@ int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std:
 
 int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
-    const bool conditionToCheck = evaluateStatement(line, extCommands);
+    bool conditionToCheck = false;
+
+    if (!evaluateStatement(line, extCommands, &conditionToCheck))
+    {
+        LOG(Log::LOG_DEBUG, "\tCould not evaluate statement %s\r\n", line.c_str());
+        return SCRIPT_ERROR;
+    }
 
     if (conditionToCheck)
     {

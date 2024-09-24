@@ -365,7 +365,7 @@ class DuckyInterpreter {
         bool performKeyPressesForList(const std::vector<std::pair<bool, uint8_t>>&);
         int handleIF(const std::string&, int, std::string&, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>>&);
         int handleWHILE(const std::string &, int , std::string& , std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
-        bool evaluateStatement(std::string&, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
+        bool evaluateStatement(std::string&, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &, bool* condition);
         std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
         int evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
         inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);

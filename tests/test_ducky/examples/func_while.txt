@@ -1,0 +1,5 @@
+WHILE ( NEVER_TRUE() )
+    STRING a
+END_WHILE
+
+STRING a
