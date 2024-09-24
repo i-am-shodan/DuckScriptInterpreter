@@ -394,3 +394,36 @@ inline DuckyInterpreter::USB_MODE operator|(DuckyInterpreter::USB_MODE a, DuckyI
 inline bool operator&(DuckyInterpreter::USB_MODE a, DuckyInterpreter::USB_MODE b) {
     return static_cast<uint8_t>(a) & static_cast<uint8_t>(b);
 }
+
+namespace Ducky
+{
+    // Function to split a string into words
+    static std::vector<std::string> SplitString(const std::string &input)
+    {
+        std::vector<std::string> words;
+        std::string word;
+
+        for (char c : input)
+        {
+            if (std::isspace(c))
+            {
+                if (!word.empty())
+                {
+                    words.push_back(word);
+                    word.clear();
+                }
+            }
+            else
+            {
+                word += c;
+            }
+        }
+
+        if (!word.empty())
+        {
+            words.push_back(word);
+        }
+
+        return words;
+    }
+}

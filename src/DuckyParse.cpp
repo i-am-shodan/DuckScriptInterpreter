@@ -99,36 +99,6 @@ static inline void ltrim(std::string &s)
                                     { return !std::isspace(ch); }));
 }
 
-// Function to split a string into words
-std::vector<std::string> DuckyInterpreter::splitString(const std::string &input)
-{
-    std::vector<std::string> words;
-    std::string word;
-
-    for (char c : input)
-    {
-        if (std::isspace(c))
-        {
-            if (!word.empty())
-            {
-                words.push_back(word);
-                word.clear();
-            }
-        }
-        else
-        {
-            word += c;
-        }
-    }
-
-    if (!word.empty())
-    {
-        words.push_back(word);
-    }
-
-    return words;
-}
-
 static std::pair<std::string, std::string> extractFirstWord(const std::string &input)
 {
     // Find the position of the first space
@@ -211,7 +181,7 @@ DuckyInterpreter::DuckyInterpreter(
 
     _commandMap["VAR"] = [this](string line)
     {
-        const auto args = splitString(line);
+        const auto args = Ducky::SplitString(line);
 
         if (args.size() != 3 || args[1] != "=")
         {
@@ -310,7 +280,7 @@ DuckyInterpreter::DuckyInterpreter(
 
         LOG(Log::LOG_DEBUG, "System key line '%s'\n", line.c_str());
 
-        for (std::string &word : splitString(line))
+        for (std::string &word : Ducky::SplitString(line))
         {
             LOG(Log::LOG_DEBUG, "\tSystem key '%s'\n", word.c_str());
 
@@ -448,7 +418,7 @@ DuckyInterpreter::DuckyInterpreter(
         std::string PRODPrefix = "PROD_";
         std::string SERIALPrefix = "SERIAL_";
 
-        const auto keyWords = splitString(arg);
+        const auto keyWords = Ducky::SplitString(arg);
         if (keyWords.size() == 0)
         {
             return false;
@@ -508,7 +478,7 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
     ltrim(statement);
     rtrim(statement);
 
-    const auto words = splitString(statement);
+    const auto words = Ducky::SplitString(statement);
     if (words.size() >= 3)
     {
         std::string lhs = words[0];
