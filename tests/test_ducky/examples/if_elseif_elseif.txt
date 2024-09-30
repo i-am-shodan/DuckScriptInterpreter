@@ -1,0 +1,15 @@
+VAR $INDEX = 1
+WHILE (TRUE_FIVE_TIMES())
+    IF ($INDEX == 1)
+        STRING a
+    ELSE IF ($INDEX == 2)
+        STRING b
+    ELSE IF ($INDEX == 3)
+        STRING c
+    END_IF
+
+    $INDEX = ( $INDEX + 1 )
+    IF ($INDEX == 4)
+        $INDEX = 1
+    END_IF
+END_WHILE

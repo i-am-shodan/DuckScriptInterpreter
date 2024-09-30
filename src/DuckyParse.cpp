@@ -498,11 +498,13 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
     }
 }
 
-static std::string replaceString(std::string subject, const std::string& search, const std::string& replace) {
+static std::string replaceString(std::string subject, const std::string &search, const std::string &replace)
+{
     size_t pos = 0;
-    while ((pos = subject.find(search, pos)) != std::string::npos) {
-         subject.replace(pos, search.length(), replace);
-         pos += replace.length();
+    while ((pos = subject.find(search, pos)) != std::string::npos)
+    {
+        subject.replace(pos, search.length(), replace);
+        pos += replace.length();
     }
     return subject;
 }
@@ -908,38 +910,65 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
     return lineNumber;
 }
 
+static bool isStringDigits(const std::string &str)
+{
+    for (char c : str)
+    {
+        if (!isdigit(c))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::string &arg, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
     LOG(Log::LOG_DEBUG, "Assigning expression %s to variable %s\r\n", arg.c_str(), variableName.c_str());
     int currentValue = _variables[variableName];
 
-    for (auto &condition : parseCondition(arg))
+    if (isStringDigits(arg))
     {
-        int lhsValue = this->evaluate(std::get<0>(condition), extCommands);
-        int rhsValue = this->evaluate(std::get<2>(condition), extCommands);
-        auto op = std::get<1>(condition);
-        LOG(Log::LOG_DEBUG, "Processing condition LHS=%d, OP=%d, RHS=%d\r\n", lhsValue, op, rhsValue);
-
-        switch (op)
+        currentValue = atoi(arg.c_str());
+    }
+    else if (arg == "TRUE")
+    {
+        currentValue = 1;
+    }
+    else if (arg == "FALSE")
+    {
+        currentValue = 0;
+    }
+    else
+    {
+        for (auto &condition : parseCondition(arg))
         {
-        case DuckyScriptOperator::ADD:
-            currentValue = lhsValue + rhsValue;
-            break;
-        case DuckyScriptOperator::SUBTRACT:
-            currentValue = lhsValue - rhsValue;
-            break;
-        case DuckyScriptOperator::MULTIPLY:
-            currentValue = lhsValue * rhsValue;
-            break;
-        case DuckyScriptOperator::DIVIDE:
-            currentValue = lhsValue / rhsValue;
-            break;
-        case DuckyScriptOperator::MOD:
-            currentValue = lhsValue % rhsValue;
-            break;
-        default:
-            LOG(Log::LOG_DEBUG, "Invalid operator\r\n");
-            return SCRIPT_ERROR;
+            int lhsValue = this->evaluate(std::get<0>(condition), extCommands);
+            int rhsValue = this->evaluate(std::get<2>(condition), extCommands);
+            auto op = std::get<1>(condition);
+            LOG(Log::LOG_DEBUG, "Processing condition LHS=%d, OP=%d, RHS=%d\r\n", lhsValue, op, rhsValue);
+
+            switch (op)
+            {
+            case DuckyScriptOperator::ADD:
+                currentValue = lhsValue + rhsValue;
+                break;
+            case DuckyScriptOperator::SUBTRACT:
+                currentValue = lhsValue - rhsValue;
+                break;
+            case DuckyScriptOperator::MULTIPLY:
+                currentValue = lhsValue * rhsValue;
+                break;
+            case DuckyScriptOperator::DIVIDE:
+                currentValue = lhsValue / rhsValue;
+                break;
+            case DuckyScriptOperator::MOD:
+                currentValue = lhsValue % rhsValue;
+                break;
+            default:
+                LOG(Log::LOG_DEBUG, "Invalid operator %d\r\n", op);
+                return false;
+            }
         }
     }
 
