@@ -28,61 +28,65 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 using namespace std;
 using namespace Ducky;
 
-constexpr const char *DuckyInterpreter::UP;
-constexpr const char *DuckyInterpreter::DOWN;
-constexpr const char *DuckyInterpreter::LEFT;
-constexpr const char *DuckyInterpreter::RIGHT;
-constexpr const char *DuckyInterpreter::UPARROW;
-constexpr const char *DuckyInterpreter::DOWNARROW;
-constexpr const char *DuckyInterpreter::LEFTARROW;
-constexpr const char *DuckyInterpreter::RIGHTARROW;
-constexpr const char *DuckyInterpreter::PAGEUP;
-constexpr const char *DuckyInterpreter::PAGEDOWN;
-constexpr const char *DuckyInterpreter::HOME;
-constexpr const char *DuckyInterpreter::END;
-constexpr const char *DuckyInterpreter::INSERT;
-constexpr const char *DuckyInterpreter::DELETE;
-constexpr const char *DuckyInterpreter::DEL;
-constexpr const char *DuckyInterpreter::BACKSPACE;
-constexpr const char *DuckyInterpreter::TAB;
-constexpr const char *DuckyInterpreter::SPACE;
-constexpr const char *DuckyInterpreter::ENTER;
-constexpr const char *DuckyInterpreter::ESCAPE;
-constexpr const char *DuckyInterpreter::PAUSE;
-constexpr const char *DuckyInterpreter::BREAK;
-constexpr const char *DuckyInterpreter::PRINTSCREEN;
-constexpr const char *DuckyInterpreter::MENU_APP;
-constexpr const char *DuckyInterpreter::F1;
-constexpr const char *DuckyInterpreter::F2;
-constexpr const char *DuckyInterpreter::F3;
-constexpr const char *DuckyInterpreter::F4;
-constexpr const char *DuckyInterpreter::F5;
-constexpr const char *DuckyInterpreter::F6;
-constexpr const char *DuckyInterpreter::F7;
-constexpr const char *DuckyInterpreter::F8;
-constexpr const char *DuckyInterpreter::F9;
-constexpr const char *DuckyInterpreter::F10;
-constexpr const char *DuckyInterpreter::F11;
-constexpr const char *DuckyInterpreter::F12;
-constexpr const char *DuckyInterpreter::SHIFT;
-constexpr const char *DuckyInterpreter::ALT;
-constexpr const char *DuckyInterpreter::CONTROL;
-constexpr const char *DuckyInterpreter::CTRL;
-constexpr const char *DuckyInterpreter::COMMAND;
-constexpr const char *DuckyInterpreter::WINDOWS;
-constexpr const char *DuckyInterpreter::GUI;
-constexpr const char *DuckyInterpreter::CAPSLOCK;
-constexpr const char *DuckyInterpreter::NUMLOCK;
-constexpr const char *DuckyInterpreter::SCROLLOCK;
+static const int16_t SCRIPT_ERROR = -2;
+static const int16_t END_OF_FILE = -1;
 
-const std::string prefixIF = "IF ";
-const std::string prefixEND_IF = "END_IF";
-const std::string prefixELSE_IF = "ELSE IF ";
-const std::string prefixELSE = "ELSE";
-const std::string PrefixWHILE = "WHILE ";
-const std::string EndWHILE = "END_WHILE";
-const std::string THENSuffix = " THEN";
-const std::string RestartPayload = "RESTART_PAYLOAD";
+static constexpr const char *UP = "UP";
+static constexpr const char *DOWN = "DOWN";
+static constexpr const char *LEFT = "LEFT";
+static constexpr const char *RIGHT = "RIGHT";
+static constexpr const char *UPARROW = "UPARROW";
+static constexpr const char *DOWNARROW = "DOWNARROW";
+static constexpr const char *LEFTARROW = "LEFTARROW";
+static constexpr const char *RIGHTARROW = "RIGHTARROW";
+static constexpr const char *PAGEUP = "PAGEUP";
+static constexpr const char *PAGEDOWN = "PAGEDOWN";
+static constexpr const char *HOME = "HOME";
+static constexpr const char *END = "END";
+static constexpr const char *INSERT = "INSERT";
+static constexpr const char *DELETE = "DELETE";
+static constexpr const char *DEL = "DEL";
+static constexpr const char *BACKSPACE = "BACKSPACE";
+static constexpr const char *TAB = "TAB";
+static constexpr const char *SPACE = "SPACE";
+static constexpr const char *ENTER = "ENTER";
+static constexpr const char *ESCAPE = "ESCAPE";
+static constexpr const char *PAUSE = "PAUSE";
+static constexpr const char *BREAK = "BREAK";
+static constexpr const char *PRINTSCREEN = "PRINTSCREEN";
+static constexpr const char *MENU_APP = "MENU APP";
+static constexpr const char *F1 = "F1";
+static constexpr const char *F2 = "F2";
+static constexpr const char *F3 = "F3";
+static constexpr const char *F4 = "F4";
+static constexpr const char *F5 = "F5";
+static constexpr const char *F6 = "F6";
+static constexpr const char *F7 = "F7";
+static constexpr const char *F8 = "F8";
+static constexpr const char *F9 = "F9";
+static constexpr const char *F10 = "F10";
+static constexpr const char *F11 = "F11";
+static constexpr const char *F12 = "F12";
+static constexpr const char *SHIFT = "SHIFT";
+static constexpr const char *ALT = "ALT";
+static constexpr const char *CONTROL = "CONTROL";
+static constexpr const char *CTRL = "CTRL";
+static constexpr const char *COMMAND = "COMMAND";
+static constexpr const char *WINDOWS = "WINDOWS";
+static constexpr const char *GUI = "GUI";
+static constexpr const char *CAPSLOCK = "CAPSLOCK";
+static constexpr const char *NUMLOCK = "NUMLOCK";
+static constexpr const char *SCROLLOCK = "SCROLLOCK";
+static constexpr const uint8_t SHIFT_KEY = 0xe1;
+
+static const std::string prefixIF = "IF ";
+static const std::string prefixEND_IF = "END_IF";
+static const std::string prefixELSE_IF = "ELSE IF ";
+static const std::string prefixELSE = "ELSE";
+static const std::string PrefixWHILE = "WHILE ";
+static const std::string EndWHILE = "END_WHILE";
+static const std::string THENSuffix = " THEN";
+static const std::string RestartPayload = "RESTART_PAYLOAD";
 
 static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
     {"a", USBKeyDefinition(0x04)},
@@ -187,82 +191,82 @@ static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
     {"?", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x38)},
 
     {" ", USBKeyDefinition(0x2c)},
-    {DuckyInterpreter::SPACE, USBKeyDefinition(0x2c)},
-    {DuckyInterpreter::BACKSPACE, USBKeyDefinition(0x2a)},
-    {DuckyInterpreter::TAB, USBKeyDefinition(0x2b)},
-    {DuckyInterpreter::ENTER, USBKeyDefinition(0x28)},
-    {DuckyInterpreter::CTRL, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftControl)},
-    {DuckyInterpreter::CONTROL, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftControl)},
-    {DuckyInterpreter::ALT, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftAlt)},
-    {DuckyInterpreter::SHIFT, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift)},
-    {DuckyInterpreter::DEL, USBKeyDefinition(0x4c)},
-    {DuckyInterpreter::F1, USBKeyDefinition(0x3a)},
-    {DuckyInterpreter::F2, USBKeyDefinition(0x3b)},
-    {DuckyInterpreter::F3, USBKeyDefinition(0x3c)},
-    {DuckyInterpreter::F4, USBKeyDefinition(0x3d)},
-    {DuckyInterpreter::F5, USBKeyDefinition(0x3e)},
-    {DuckyInterpreter::F6, USBKeyDefinition(0x3f)},
-    {DuckyInterpreter::F7, USBKeyDefinition(0x40)},
-    {DuckyInterpreter::F8, USBKeyDefinition(0x41)},
-    {DuckyInterpreter::F9, USBKeyDefinition(0x42)},
-    {DuckyInterpreter::F10, USBKeyDefinition(0x43)},
-    {DuckyInterpreter::F11, USBKeyDefinition(0x44)},
-    {DuckyInterpreter::F12, USBKeyDefinition(0x45)},
-    {DuckyInterpreter::RIGHT, USBKeyDefinition(0x4e)},
-    {DuckyInterpreter::LEFT, USBKeyDefinition(0x4f)},
-    {DuckyInterpreter::DOWN, USBKeyDefinition(0x50)},
-    {DuckyInterpreter::UP, USBKeyDefinition(0x51)},
-    {DuckyInterpreter::GUI, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftGui)},
-    {DuckyInterpreter::END, USBKeyDefinition(0x4d)}};
+    {SPACE, USBKeyDefinition(0x2c)},
+    {BACKSPACE, USBKeyDefinition(0x2a)},
+    {TAB, USBKeyDefinition(0x2b)},
+    {ENTER, USBKeyDefinition(0x28)},
+    {CTRL, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftControl)},
+    {CONTROL, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftControl)},
+    {ALT, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftAlt)},
+    {SHIFT, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift)},
+    {DEL, USBKeyDefinition(0x4c)},
+    {F1, USBKeyDefinition(0x3a)},
+    {F2, USBKeyDefinition(0x3b)},
+    {F3, USBKeyDefinition(0x3c)},
+    {F4, USBKeyDefinition(0x3d)},
+    {F5, USBKeyDefinition(0x3e)},
+    {F6, USBKeyDefinition(0x3f)},
+    {F7, USBKeyDefinition(0x40)},
+    {F8, USBKeyDefinition(0x41)},
+    {F9, USBKeyDefinition(0x42)},
+    {F10, USBKeyDefinition(0x43)},
+    {F11, USBKeyDefinition(0x44)},
+    {F12, USBKeyDefinition(0x45)},
+    {RIGHT, USBKeyDefinition(0x4e)},
+    {LEFT, USBKeyDefinition(0x4f)},
+    {DOWN, USBKeyDefinition(0x50)},
+    {UP, USBKeyDefinition(0x51)},
+    {GUI, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftGui)},
+    {END, USBKeyDefinition(0x4d)}};
 
 static std::vector<const char *> systemKeys =
     {
-        DuckyInterpreter::UP,
-        DuckyInterpreter::DOWN,
-        DuckyInterpreter::LEFT,
-        DuckyInterpreter::RIGHT,
-        DuckyInterpreter::UPARROW,
-        DuckyInterpreter::DOWNARROW,
-        DuckyInterpreter::LEFTARROW,
-        DuckyInterpreter::RIGHTARROW,
-        DuckyInterpreter::PAGEUP,
-        DuckyInterpreter::PAGEDOWN,
-        DuckyInterpreter::HOME,
-        DuckyInterpreter::END,
-        DuckyInterpreter::INSERT,
-        DuckyInterpreter::DELETE,
-        DuckyInterpreter::DEL,
-        DuckyInterpreter::BACKSPACE,
-        DuckyInterpreter::TAB,
-        DuckyInterpreter::SPACE,
-        DuckyInterpreter::ENTER,
-        DuckyInterpreter::ESCAPE,
-        DuckyInterpreter::PAUSE,
-        DuckyInterpreter::BREAK,
-        DuckyInterpreter::PRINTSCREEN,
-        DuckyInterpreter::MENU_APP,
-        DuckyInterpreter::F1,
-        DuckyInterpreter::F2,
-        DuckyInterpreter::F3,
-        DuckyInterpreter::F4,
-        DuckyInterpreter::F5,
-        DuckyInterpreter::F6,
-        DuckyInterpreter::F7,
-        DuckyInterpreter::F8,
-        DuckyInterpreter::F9,
-        DuckyInterpreter::F10,
-        DuckyInterpreter::F11,
-        DuckyInterpreter::F12,
-        DuckyInterpreter::SHIFT,
-        DuckyInterpreter::ALT,
-        DuckyInterpreter::CONTROL,
-        DuckyInterpreter::CTRL,
-        DuckyInterpreter::COMMAND,
-        DuckyInterpreter::WINDOWS,
-        DuckyInterpreter::GUI,
-        DuckyInterpreter::CAPSLOCK,
-        DuckyInterpreter::NUMLOCK,
-        DuckyInterpreter::SCROLLOCK};
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT,
+        UPARROW,
+        DOWNARROW,
+        LEFTARROW,
+        RIGHTARROW,
+        PAGEUP,
+        PAGEDOWN,
+        HOME,
+        END,
+        INSERT,
+        DELETE,
+        DEL,
+        BACKSPACE,
+        TAB,
+        SPACE,
+        ENTER,
+        ESCAPE,
+        PAUSE,
+        BREAK,
+        PRINTSCREEN,
+        MENU_APP,
+        F1,
+        F2,
+        F3,
+        F4,
+        F5,
+        F6,
+        F7,
+        F8,
+        F9,
+        F10,
+        F11,
+        F12,
+        SHIFT,
+        ALT,
+        CONTROL,
+        CTRL,
+        COMMAND,
+        WINDOWS,
+        GUI,
+        CAPSLOCK,
+        NUMLOCK,
+        SCROLLOCK};
 
 static std::unordered_map<std::string, DuckyInterpreter::DuckyScriptOperator> operatorMap = {
     {"==", DuckyInterpreter::DuckyScriptOperator::EQ},

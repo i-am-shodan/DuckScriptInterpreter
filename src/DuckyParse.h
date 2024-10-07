@@ -77,55 +77,6 @@ public:
     static const int16_t SCRIPT_ERROR = -2;
     static const int16_t END_OF_FILE = -1;
 
-    static constexpr const char *UP = "UP";
-    static constexpr const char *DOWN = "DOWN";
-    static constexpr const char *LEFT = "LEFT";
-    static constexpr const char *RIGHT = "RIGHT";
-    static constexpr const char *UPARROW = "UPARROW";
-    static constexpr const char *DOWNARROW = "DOWNARROW";
-    static constexpr const char *LEFTARROW = "LEFTARROW";
-    static constexpr const char *RIGHTARROW = "RIGHTARROW";
-    static constexpr const char *PAGEUP = "PAGEUP";
-    static constexpr const char *PAGEDOWN = "PAGEDOWN";
-    static constexpr const char *HOME = "HOME";
-    static constexpr const char *END = "END";
-    static constexpr const char *INSERT = "INSERT";
-    static constexpr const char *DELETE = "DELETE";
-    static constexpr const char *DEL = "DEL";
-    static constexpr const char *BACKSPACE = "BACKSPACE";
-    static constexpr const char *TAB = "TAB";
-    static constexpr const char *SPACE = "SPACE";
-    static constexpr const char *ENTER = "ENTER";
-    static constexpr const char *ESCAPE = "ESCAPE";
-    static constexpr const char *PAUSE = "PAUSE";
-    static constexpr const char *BREAK = "BREAK";
-    static constexpr const char *PRINTSCREEN = "PRINTSCREEN";
-    static constexpr const char *MENU_APP = "MENU APP";
-    static constexpr const char *F1 = "F1";
-    static constexpr const char *F2 = "F2";
-    static constexpr const char *F3 = "F3";
-    static constexpr const char *F4 = "F4";
-    static constexpr const char *F5 = "F5";
-    static constexpr const char *F6 = "F6";
-    static constexpr const char *F7 = "F7";
-    static constexpr const char *F8 = "F8";
-    static constexpr const char *F9 = "F9";
-    static constexpr const char *F10 = "F10";
-    static constexpr const char *F11 = "F11";
-    static constexpr const char *F12 = "F12";
-    static constexpr const char *SHIFT = "SHIFT";
-    static constexpr const char *ALT = "ALT";
-    static constexpr const char *CONTROL = "CONTROL";
-    static constexpr const char *CTRL = "CTRL";
-    static constexpr const char *COMMAND = "COMMAND";
-    static constexpr const char *WINDOWS = "WINDOWS";
-    static constexpr const char *GUI = "GUI";
-    static constexpr const char *CAPSLOCK = "CAPSLOCK";
-    static constexpr const char *NUMLOCK = "NUMLOCK";
-    static constexpr const char *SCROLLOCK = "SCROLLOCK";
-
-    static constexpr const uint8_t SHIFT_KEY = 0xe1;
-
     enum class USB_MODE : uint8_t
     {
         OFF = 0,

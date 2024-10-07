@@ -54,7 +54,7 @@ void keyboard_press(uint8_t modifiers, uint8_t key1, uint8_t key2, uint8_t key3,
 {
     if (modifiers & (uint8_t)USBKeyDefinition::UsbHidModifiers::LeftShift)
     {
-        testString += "P" + std::to_string(DuckyInterpreter::SHIFT_KEY);
+        testString += "P225";
     }
     if (modifiers & (uint8_t)USBKeyDefinition::UsbHidModifiers::LeftGui)
     {
@@ -88,7 +88,7 @@ void keyboard_release()
 
     if (lastModifier & (uint8_t)USBKeyDefinition::UsbHidModifiers::LeftShift)
     {
-        testString += "R" + std::to_string(DuckyInterpreter::SHIFT_KEY);
+        testString += "R225";
     }
     if (lastModifier & (uint8_t)USBKeyDefinition::UsbHidModifiers::LeftGui)
     {
