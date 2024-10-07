@@ -148,6 +148,17 @@ static std::string replaceAllOccurrences(const std::string &subject, const std::
 
 USBKeyDefinition DuckyInterpreter::getUSBKeyDefinition(const std::string &keyStr)
 {
+    // First look to see if a locale has been set and we have a lookup for this key
+    if (keyboardLayout.length() != 0)
+    {
+        auto& table = langLookupTable[keyboardLayout];
+        if (table.find(keyStr) != table.cend())
+        {
+            LOG(Log::LOG_DEBUG, "Key string (%s) found in langLookupTable\n", keyStr.c_str());
+            return table[keyStr];
+        }
+    }
+
     const auto it = keyLookupTable.find(keyStr);
     if (it != keyLookupTable.cend())
     {
@@ -980,7 +991,11 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
 
 // -1 error
 //
-int DuckyInterpreter::Execute(const std::string &filePath, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
+int DuckyInterpreter::Execute(const std::string &filePath, 
+                int lineNumber, 
+                std::unordered_map<std::string, 
+                std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, 
+                std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
 {
     if (lineNumber < 0)
     {
