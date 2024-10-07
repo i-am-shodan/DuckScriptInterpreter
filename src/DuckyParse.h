@@ -461,12 +461,12 @@ private:
          }},
         {"win_en-GB",
          {
-             {"|", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x64)},
-             {"#", USBKeyDefinition(0x31)},
-             {"~", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x31)},
-             {"\\", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x31)},
-             {"\"", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1f)},
-             {"@", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x34)},
+             {"|", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x64)}, // tested and works
+             {"#", USBKeyDefinition(0x31)},                                               // tested and works
+             {"~", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x31)}, // tested and works
+             {"\\", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x31)}, // tested and works
+             {"\"", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1f)},// tested and works
+             {"@", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x34)}, // tested and works
          }},
         {"win_pt-BR",
          {
