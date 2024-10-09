@@ -7,6 +7,7 @@ DuckScriptInterpreter is a C++ interpreter for files written in a Ducky like lan
 - Designed for embedded systems.
 - Easily extendable with user-defined functionality.
 - Supports control flow constructs, repetition, functions, and extensions.
+- Keyboard layouts
 
 ## Installation
 To include DuckScriptInterpreter in your project, clone the repository and include the necessary files in your build system.
@@ -36,6 +37,33 @@ Include the DuckScriptInterpreter library in your project and implement the requ
 * ATTACKMODE
 * RESTART_PAYLOAD
 * RESET
+
+### Supported keyboard layouts
+The following layouts are currently support and are given in the format. \<OS>_\<Country code> or \<OS>_\<Locale>.
+
+* win_be
+* win_pt-BR
+* win_ca-FR
+* win_ca
+* win_ch
+* win_cs-CZ
+* win_de-DE
+* win_da-DK
+* win_es
+* win_fi
+* win_fr
+* win_en-GB
+* win_hr-HR
+* win_hu-HU
+* win_it
+* win_ja-JP
+* win_es-MX
+* win_no
+* win_pt-PT
+* win_se
+* win_si
+* win_sk-SK
+* win_tr-TR
 
 ### Planned Functionality but not yet implemented
 * INJECT_MOD WINDOWS
