@@ -1,0 +1,40 @@
+#pragma once
+
+#ifdef LOCALE_win_tr_TK
+
+    {"win_tr-TR",
+     {
+         {"i", USBKeyDefinition(0x34)},
+         {"@", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x14)},
+         {"#", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x20)},
+         {"$", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x21)},
+         {"^", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x20)},
+         {"&", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x23)},
+         {"*", USBKeyDefinition(0x2d)},
+         {"(", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x25)},
+         {")", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x26)},
+         {"-", USBKeyDefinition(0x2e)},
+         {"_", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2e)},
+         {"=", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x27)},
+         {"+", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x21)},
+         {"[", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x25)},
+         {"{", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x24)},
+         {"]", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x26)},
+         {"}", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x27)},
+         {"\\", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x2d)},
+         {"|", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x2e)},
+         {";", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x31)},
+         {":", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x38)},
+         {"'", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1f)},
+         {"\"", USBKeyDefinition(0x35)},
+         {"`", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x31)},
+         {"~", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x30)},
+         {",", USBKeyDefinition(0x31)},
+         {"<", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x35)},
+         {".", USBKeyDefinition(0x38)},
+         {">", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x1e)},
+         {"/", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x24)},
+         {"?", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2d)},
+     }},
+
+#endif

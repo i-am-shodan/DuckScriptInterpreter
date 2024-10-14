@@ -42,28 +42,31 @@ Include the DuckScriptInterpreter library in your project and implement the requ
 The following layouts are currently support and are given in the format. \<OS>_\<Country code> or \<OS>_\<Locale>.
 
 * win_be
-* win_pt-BR
 * win_ca-FR
 * win_ca
 * win_ch
 * win_cs-CZ
 * win_de-DE
 * win_da-DK
+* win_en-GB
 * win_es
+* win_es-MX
 * win_fi
 * win_fr
-* win_en-GB
 * win_hr-HR
 * win_hu-HU
 * win_it
 * win_ja-JP
-* win_es-MX
 * win_no
+* win_pt-BR
 * win_pt-PT
 * win_se
 * win_si
 * win_sk-SK
 * win_tr-TR
+
+#### Note
+Memory usage for devices that want to use this library is often at a premium. To reduce memory, in order to use these layouts they must first be 'compiled in'. Take your layout and replace the `-` character (if it exists) with `_` character then use that as a `#define`. For example to use win_en-GB I need to add the `#define win_en_GB` compiler directive.
 
 ### Planned Functionality but not yet implemented
 * INJECT_MOD WINDOWS
