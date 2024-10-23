@@ -22,6 +22,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // make faster by holding multiple keys
 
 #include "DuckyParse.h"
+#include "USBKeyDefinitions.h"
 
 #include <algorithm>
 
@@ -30,55 +31,6 @@ using namespace Ducky;
 
 static const int16_t SCRIPT_ERROR = -2;
 static const int16_t END_OF_FILE = -1;
-
-static constexpr const char *UP = "UP";
-static constexpr const char *DOWN = "DOWN";
-static constexpr const char *LEFT = "LEFT";
-static constexpr const char *RIGHT = "RIGHT";
-static constexpr const char *UPARROW = "UPARROW";
-static constexpr const char *DOWNARROW = "DOWNARROW";
-static constexpr const char *LEFTARROW = "LEFTARROW";
-static constexpr const char *RIGHTARROW = "RIGHTARROW";
-static constexpr const char *PAGEUP = "PAGEUP";
-static constexpr const char *PAGEDOWN = "PAGEDOWN";
-static constexpr const char *HOME = "HOME";
-static constexpr const char *END = "END";
-static constexpr const char *INSERT = "INSERT";
-static constexpr const char *DELETE = "DELETE";
-static constexpr const char *DEL = "DEL";
-static constexpr const char *BACKSPACE = "BACKSPACE";
-static constexpr const char *TAB = "TAB";
-static constexpr const char *SPACE = "SPACE";
-static constexpr const char *ENTER = "ENTER";
-static constexpr const char *ESCAPE = "ESCAPE";
-static constexpr const char *PAUSE = "PAUSE";
-static constexpr const char *BREAK = "BREAK";
-static constexpr const char *PRINTSCREEN = "PRINTSCREEN";
-static constexpr const char *MENU_APP = "MENU APP";
-static constexpr const char *F1 = "F1";
-static constexpr const char *F2 = "F2";
-static constexpr const char *F3 = "F3";
-static constexpr const char *F4 = "F4";
-static constexpr const char *F5 = "F5";
-static constexpr const char *F6 = "F6";
-static constexpr const char *F7 = "F7";
-static constexpr const char *F8 = "F8";
-static constexpr const char *F9 = "F9";
-static constexpr const char *F10 = "F10";
-static constexpr const char *F11 = "F11";
-static constexpr const char *F12 = "F12";
-static constexpr const char *SHIFT = "SHIFT";
-static constexpr const char *ALT = "ALT";
-static constexpr const char *CONTROL = "CONTROL";
-static constexpr const char *CTRL = "CTRL";
-static constexpr const char *COMMAND = "COMMAND";
-static constexpr const char *WINDOWS = "WINDOWS";
-static constexpr const char *GUI = "GUI";
-static constexpr const char *CAPSLOCK = "CAPSLOCK";
-static constexpr const char *NUMLOCK = "NUMLOCK";
-static constexpr const char *SCROLLOCK = "SCROLLOCK";
-static constexpr const uint8_t SHIFT_KEY = 0xe1;
-
 static const std::string prefixIF = "IF ";
 static const std::string prefixEND_IF = "END_IF";
 static const std::string prefixELSE_IF = "ELSE IF ";
@@ -86,187 +38,13 @@ static const std::string prefixELSE = "ELSE";
 static const std::string PrefixWHILE = "WHILE ";
 static const std::string EndWHILE = "END_WHILE";
 static const std::string THENSuffix = " THEN";
+static const std::string prefixFUNCTION = "FUNCTION ";
+static const std::string prefixEND_FUNCTION = "END_FUNCTION";
 static const std::string RestartPayload = "RESTART_PAYLOAD";
-
-static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
-    {"a", USBKeyDefinition(0x04)},
-    {"A", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x04)},
-    {"b", USBKeyDefinition(0x05)},
-    {"B", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x05)},
-    {"c", USBKeyDefinition(0x06)},
-    {"C", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x06)},
-    {"d", USBKeyDefinition(0x07)},
-    {"D", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x07)},
-    {"e", USBKeyDefinition(0x08)},
-    {"E", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x08)},
-    {"f", USBKeyDefinition(0x09)},
-    {"F", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x09)},
-    {"g", USBKeyDefinition(0x0a)},
-    {"G", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x0a)},
-    {"h", USBKeyDefinition(0x0b)},
-    {"H", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x0b)},
-    {"i", USBKeyDefinition(0x0c)},
-    {"I", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x0c)},
-    {"j", USBKeyDefinition(0x0d)},
-    {"J", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x0d)},
-    {"k", USBKeyDefinition(0x0e)},
-    {"K", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x0e)},
-    {"l", USBKeyDefinition(0x0f)},
-    {"L", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x0f)},
-    {"m", USBKeyDefinition(0x10)},
-    {"M", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x10)},
-    {"n", USBKeyDefinition(0x11)},
-    {"N", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x11)},
-    {"o", USBKeyDefinition(0x12)},
-    {"O", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x12)},
-    {"p", USBKeyDefinition(0x13)},
-    {"P", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x13)},
-    {"q", USBKeyDefinition(0x14)},
-    {"Q", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x14)},
-    {"r", USBKeyDefinition(0x15)},
-    {"R", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x15)},
-    {"s", USBKeyDefinition(0x16)},
-    {"S", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x16)},
-    {"t", USBKeyDefinition(0x17)},
-    {"T", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x17)},
-    {"u", USBKeyDefinition(0x18)},
-    {"U", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x18)},
-    {"v", USBKeyDefinition(0x19)},
-    {"V", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x19)},
-    {"w", USBKeyDefinition(0x1a)},
-    {"W", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1a)},
-    {"x", USBKeyDefinition(0x1b)},
-    {"X", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1b)},
-    {"y", USBKeyDefinition(0x1c)},
-    {"Y", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1c)},
-    {"z", USBKeyDefinition(0x1d)},
-    {"Z", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1d)},
-
-    {"1", USBKeyDefinition(0x1e)},
-    {"2", USBKeyDefinition(0x1f)},
-    {"3", USBKeyDefinition(0x20)},
-    {"4", USBKeyDefinition(0x21)},
-    {"5", USBKeyDefinition(0x22)},
-    {"6", USBKeyDefinition(0x23)},
-    {"7", USBKeyDefinition(0x24)},
-    {"8", USBKeyDefinition(0x25)},
-    {"9", USBKeyDefinition(0x26)},
-    {"0", USBKeyDefinition(0x27)},
-    {"-", USBKeyDefinition(0x2d)},
-    {"=", USBKeyDefinition(0x2e)},
-
-    {"!", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1e)},
-    {"\"", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1f)},
-    {"£", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x20)},
-    {"$", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x21)},
-    {"%", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x22)},
-    {"^", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x23)},
-    {"&", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x24)},
-    {"*", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x25)},
-    {"(", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x26)},
-    {")", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x27)},
-    {"_", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2d)},
-    {"+", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2e)},
-
-    {"[", USBKeyDefinition(0x27)},
-    {"{", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2f)},
-    {"]", USBKeyDefinition(0x30)},
-    {"}", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x30)},
-    {"\\", USBKeyDefinition(0x31)},
-    {"|", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x31)},
-
-    {";", USBKeyDefinition(0x33)},
-    {":", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x33)},
-    {"'", USBKeyDefinition(0x34)},
-    {"@", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x34)}, // UK
-
-    {"#", USBKeyDefinition(0x33)},                                               // TODO
-    {"~", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x33)}, // TODO
-
-    {",", USBKeyDefinition(0x36)},
-    {"<", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x36)},
-    {".", USBKeyDefinition(0x37)},
-    {">", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x37)},
-    {"/", USBKeyDefinition(0x38)},
-    {"?", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x38)},
-
-    {" ", USBKeyDefinition(0x2c)},
-    {SPACE, USBKeyDefinition(0x2c)},
-    {BACKSPACE, USBKeyDefinition(0x2a)},
-    {TAB, USBKeyDefinition(0x2b)},
-    {ENTER, USBKeyDefinition(0x28)},
-    {CTRL, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftControl)},
-    {CONTROL, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftControl)},
-    {ALT, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftAlt)},
-    {SHIFT, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift)},
-    {DEL, USBKeyDefinition(0x4c)},
-    {F1, USBKeyDefinition(0x3a)},
-    {F2, USBKeyDefinition(0x3b)},
-    {F3, USBKeyDefinition(0x3c)},
-    {F4, USBKeyDefinition(0x3d)},
-    {F5, USBKeyDefinition(0x3e)},
-    {F6, USBKeyDefinition(0x3f)},
-    {F7, USBKeyDefinition(0x40)},
-    {F8, USBKeyDefinition(0x41)},
-    {F9, USBKeyDefinition(0x42)},
-    {F10, USBKeyDefinition(0x43)},
-    {F11, USBKeyDefinition(0x44)},
-    {F12, USBKeyDefinition(0x45)},
-    {RIGHT, USBKeyDefinition(0x4e)},
-    {LEFT, USBKeyDefinition(0x4f)},
-    {DOWN, USBKeyDefinition(0x50)},
-    {UP, USBKeyDefinition(0x51)},
-    {GUI, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftGui)},
-    {END, USBKeyDefinition(0x4d)}};
-
-static std::vector<const char *> systemKeys =
-    {
-        UP,
-        DOWN,
-        LEFT,
-        RIGHT,
-        UPARROW,
-        DOWNARROW,
-        LEFTARROW,
-        RIGHTARROW,
-        PAGEUP,
-        PAGEDOWN,
-        HOME,
-        END,
-        INSERT,
-        DELETE,
-        DEL,
-        BACKSPACE,
-        TAB,
-        SPACE,
-        ENTER,
-        ESCAPE,
-        PAUSE,
-        BREAK,
-        PRINTSCREEN,
-        MENU_APP,
-        F1,
-        F2,
-        F3,
-        F4,
-        F5,
-        F6,
-        F7,
-        F8,
-        F9,
-        F10,
-        F11,
-        F12,
-        SHIFT,
-        ALT,
-        CONTROL,
-        CTRL,
-        COMMAND,
-        WINDOWS,
-        GUI,
-        CAPSLOCK,
-        NUMLOCK,
-        SCROLLOCK};
+static const std::string prefixSTRING = "STRING";
+static const std::string prefixEND_STRING = "END_STRING";
+static const std::string prefixSTRINGLN = "STRINGLN";
+static const std::string prefixEND_STRINGLN = "END_STRINGLN";
 
 static std::unordered_map<std::string, DuckyInterpreter::DuckyScriptOperator> operatorMap = {
     {"==", DuckyInterpreter::DuckyScriptOperator::EQ},
@@ -283,103 +61,41 @@ static std::unordered_map<std::string, DuckyInterpreter::DuckyScriptOperator> op
     {"%", DuckyInterpreter::DuckyScriptOperator::MOD}};
 
 static std::unordered_map<std::string, std::unordered_map<std::string, USBKeyDefinition>> langLookupTable = {
-    #include "locales/win_be.h"
-    #include "locales/win_ca-FR.h"
-    #include "locales/win_ca.h"
-    #include "locales/win_ch.h"
-    #include "locales/win_cs-CZ.h"
-    #include "locales/win_de-DE.h"
-    #include "locales/win_da-DK.h"
-    #include "locales/win_es.h"
-    #include "locales/win_es-MX.h"
-    #include "locales/win_fi.h"
-    #include "locales/win_fr.h"
-    #include "locales/win_en-GB.h"
-    #include "locales/win_hr-HR.h"
-    #include "locales/win_hu-HU.h"
-    #include "locales/win_it.h"
-    #include "locales/win_ja-JP.h"
-    #include "locales/win_no.h"
-    #include "locales/win_pt-BR.h"
-    #include "locales/win_pt-PT.h"
-    #include "locales/win_se.h"
-    #include "locales/win_si.h"
-    #include "locales/win_sk-SK.h"
-    #include "locales/win_tr-TK.h"
+#include "locales/win_be.h"
+#include "locales/win_ca-FR.h"
+#include "locales/win_ca.h"
+#include "locales/win_ch.h"
+#include "locales/win_cs-CZ.h"
+#include "locales/win_de-DE.h"
+#include "locales/win_da-DK.h"
+#include "locales/win_es.h"
+#include "locales/win_es-MX.h"
+#include "locales/win_fi.h"
+#include "locales/win_fr.h"
+#include "locales/win_en-GB.h"
+#include "locales/win_hr-HR.h"
+#include "locales/win_hu-HU.h"
+#include "locales/win_it.h"
+#include "locales/win_ja-JP.h"
+#include "locales/win_no.h"
+#include "locales/win_pt-BR.h"
+#include "locales/win_pt-PT.h"
+#include "locales/win_se.h"
+#include "locales/win_si.h"
+#include "locales/win_sk-SK.h"
+#include "locales/win_tr-TK.h"
 };
-
-// trim from end (in place)
-static inline void rtrim(std::string &s)
-{
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch)
-                         { return !std::isspace(ch); })
-                .base(),
-            s.end());
-}
-
-static inline void ltrim(std::string &s)
-{
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch)
-                                    { return !std::isspace(ch); }));
-}
-
-static std::pair<std::string, std::string> extractFirstWord(const std::string &input)
-{
-    // Find the position of the first space
-    size_t spacePos = input.find(' ');
-
-    if (spacePos != std::string::npos)
-    {
-        // Extract the first word
-        std::string firstWord = input.substr(0, spacePos);
-
-        // Get the remainder of the string (excluding the first word)
-        std::string remainder = input.substr(spacePos + 1);
-        rtrim(remainder);
-
-        return {firstWord, remainder};
-    }
-    else
-    {
-        // If no space found, the entire input is the first word
-        return {input, ""};
-    }
-}
-
-static void replaceAllOccurrences(std::string &str, const char from, const char to)
-{
-    size_t pos = 0;
-    while ((pos = str.find(from, pos)) != std::string::npos)
-    {
-        str.replace(pos, 1, 1, to);
-        ++pos; // Move to the next position
-    }
-}
-
-static std::string replaceAllOccurrences(const std::string &subject, const std::string &search, const std::string &replace)
-{
-    std::string result = subject;
-    size_t pos = 0;
-
-    while ((pos = result.find(search, pos)) != std::string::npos)
-    {
-        result.replace(pos, search.length(), replace);
-        pos += replace.length();
-    }
-
-    return result;
-}
 
 bool DuckyInterpreter::SetKeyboardLayout(const std::string &layout)
 {
     if (layout == "win_en-US")
     {
-        keyboardLayout.clear();
+        _keyboardLayout.clear();
         return true;
     }
     else if (langLookupTable.find(layout) != langLookupTable.cend())
     {
-        keyboardLayout = layout;
+        _keyboardLayout = layout;
         return true;
     }
     return false;
@@ -388,9 +104,9 @@ bool DuckyInterpreter::SetKeyboardLayout(const std::string &layout)
 USBKeyDefinition DuckyInterpreter::getUSBKeyDefinition(const std::string &keyStr)
 {
     // First look to see if a locale has been set and we have a lookup for this key
-    if (keyboardLayout.length() != 0)
+    if (_keyboardLayout.length() != 0)
     {
-        auto &table = langLookupTable[keyboardLayout];
+        auto &table = langLookupTable[_keyboardLayout];
         if (table.find(keyStr) != table.cend())
         {
             LOG(Log::LOG_DEBUG, "Key string (%s) found in langLookupTable\n", keyStr.c_str());
@@ -426,7 +142,14 @@ DuckyInterpreter::DuckyInterpreter(
       _changeLEDStateFunc(changeLEDStateFunc),
       _waitForButtonPressFunc(waitForButtonPressFunc),
       _changeModeFunc(changeModeFunc),
-      _reset(reset)
+      _reset(reset),
+      _constants(),
+      _variables(),
+      _whileLoopLineNumbers(),
+      _keyboardLayout(),
+      _funcLookup(),
+      _callstack(),
+      _lineNumber(0)
 {
 
     _commandMap["VAR"] = [this](string line)
@@ -469,7 +192,7 @@ DuckyInterpreter::DuckyInterpreter(
         return true;
     };
 
-    _commandMap["STRING"] = [this](string arg)
+    _commandMap[prefixSTRING] = [this](string arg)
     {
         bool ret = true;
         LOG(Log::LOG_DEBUG, "STRING arg = %s\n", arg.c_str());
@@ -496,9 +219,9 @@ DuckyInterpreter::DuckyInterpreter(
         return ret;
     };
 
-    _commandMap["STRINGLN"] = [this](string arg)
+    _commandMap[prefixSTRINGLN] = [this](string arg)
     {
-        const auto ret = _commandMap["STRING"](arg);
+        const auto ret = _commandMap[prefixSTRING](arg);
 
         if (ret)
         {
@@ -636,6 +359,19 @@ DuckyInterpreter::DuckyInterpreter(
         return true;
     };
 
+    _commandMap["RETURN"] = [this](string arg)
+    {
+        const int value = evaluateIntegerExpression(arg);
+        const std::string variableKey = _callstack.top().functionName + "_RET";
+        _variables[variableKey] = value;
+
+        _lineNumber = _callstack.top().returnLineNumber - 1; // todo I hate this, this is to stop the increment that happens after
+        LOG(Log::LOG_DEBUG, "RETURN FOUND, jumping to %d\r\n", _lineNumber);
+        _callstack.pop();
+
+        return true;
+    };
+
     _commandMap["DEFINE"] = [this](string arg)
     {
         const auto ret = extractFirstWord(arg);
@@ -746,17 +482,6 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
         LOG(Log::LOG_WARNING, "Unexpected conditions in IF statement '%s'\r\n", statement.c_str());
         return std::make_tuple("", DuckyInterpreter::DuckyScriptOperator::NE, "");
     }
-}
-
-static std::string replaceString(std::string subject, const std::string &search, const std::string &replace)
-{
-    size_t pos = 0;
-    while ((pos = subject.find(search, pos)) != std::string::npos)
-    {
-        subject.replace(pos, search.length(), replace);
-        pos += replace.length();
-    }
-    return subject;
 }
 
 std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string>> DuckyInterpreter::parseCondition(std::string &condition)
@@ -880,18 +605,10 @@ static std::string extractCondition(const std::string &line)
     return condition;
 }
 
-static std::string lowerCaseString(const std::string &str)
-{
-    std::string result = str;
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char c)
-                   { return std::tolower(c); });
-    return result;
-}
-
-int DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
     LOG(Log::LOG_DEBUG, "\t\tStatement = '%s'\r\n", str.c_str());
+    EvaluationResult ret = {0};
 
     for (const auto &pair : _variables)
     {
@@ -909,36 +626,68 @@ int DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string,
     if (extCommands.find(str) != extCommands.cend())
     {
         LOG(Log::LOG_DEBUG, "\t\tFound extension command to run: %s\r\n", str.c_str());
-        return extCommands[str](str, _constants, _variables);
+        ret.evaluationResult = extCommands[str](str, _constants, _variables);
+    }
+    else if (_funcLookup.find(str) != _funcLookup.cend())
+    {
+        LOG(Log::LOG_DEBUG, "\t\tFound user defined function: %s\r\n", str.c_str());
+
+        const std::string variableKey = str + "_RET";
+
+        if (_variables.find(variableKey) == _variables.cend())
+        {
+            LOG(Log::LOG_DEBUG, "\t\tReturn code not found, requesting function evaluation\r\n");
+            ret.functionName = str;
+            ret.requiresScriptEvaluation = true;
+        }
+        else
+        {
+            auto retValue = _variables[variableKey];
+            LOG(Log::LOG_DEBUG, "\t\tReturn code found %d\r\n", retValue);
+            _variables.erase(variableKey);
+            ret.evaluationResult = retValue;
+        }
     }
     else
     {
         LOG(Log::LOG_DEBUG, "\t\tEvaluating text expression: %s\r\n", str.c_str());
-        const auto &lower = lowerCaseString(str);
-        if (lower == "true")
-        {
-            return 1;
-        }
-        else if (lower == "false")
-        {
-            return 0;
-        }
-        else
-        {
-            // convert to int
-            return atoi(str.c_str());
-        }
+        ret.evaluationResult = evaluateIntegerExpression(str);
+    }
+
+    ret.error = false;
+    return ret;
+}
+
+int DuckyInterpreter::evaluateIntegerExpression(const std::string &str)
+{
+    const auto &lower = lowerCaseString(str);
+    if (lower == "true")
+    {
+        return 1;
+    }
+    else if (lower == "false")
+    {
+        return 0;
+    }
+    else
+    {
+        // convert to int
+        return atoi(str.c_str());
     }
 }
 
-bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, bool *conditionToCheck)
+DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(std::string &line, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, bool *conditionToCheck)
 {
     LOG(Log::LOG_DEBUG, "Handling statement\r\n");
+    CallStackItem ret;
+    ret.returnLineNumber = -1;
+    ret.error = true;
+
     auto conditionStr = extractCondition(line);
 
     if (conditionStr.length() == 0)
     {
-        return false;
+        return ret;
     }
 
     LOG(Log::LOG_DEBUG, "\tCondition = '%s'\r\n", conditionStr.c_str());
@@ -952,8 +701,27 @@ bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<s
         auto op = std::get<1>(condition);
 
         LOG(Log::LOG_DEBUG, "\tEvaluating condition LHS = %s, OP = %d, RHS = %s\r\n", lhsStr.c_str(), op, rhsStr.c_str());
-        int lhsValue = this->evaluate(lhsStr, extCommands);
-        int rhsValue = this->evaluate(rhsStr, extCommands);
+        const auto &lhsEvalResult = this->evaluate(lhsStr, extCommands);
+
+        if (lhsEvalResult.requiresScriptEvaluation)
+        {
+            ret.error = false;
+            ret.returnLineNumber = lineNumber;
+            ret.functionName = lhsEvalResult.functionName;
+            return ret;
+        }
+
+        const auto &rhsEvalResult = this->evaluate(rhsStr, extCommands);
+        if (rhsEvalResult.requiresScriptEvaluation)
+        {
+            ret.error = false;
+            ret.returnLineNumber = lineNumber;
+            ret.functionName = rhsEvalResult.functionName;
+            return ret;
+        }
+
+        int lhsValue = lhsEvalResult.evaluationResult;
+        int rhsValue = rhsEvalResult.evaluationResult;
 
         switch (op)
         {
@@ -980,7 +748,8 @@ bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<s
         }
     }
 
-    return true;
+    ret.error = false;
+    return ret;
 }
 
 // the job of this function is to evaluate the condition and if true to increment the line number
@@ -989,10 +758,17 @@ int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std:
 {
     bool conditionToCheck = false;
 
-    if (!evaluateStatement(line, extCommands, &conditionToCheck))
+    const auto &callStackItem = evaluateStatement(line, lineNumber, extCommands, &conditionToCheck);
+    if (callStackItem.error == true)
     {
-        LOG(Log::LOG_ERROR, "Could not evaluate statement %s", line.c_str());
+        LOG(Log::LOG_ERROR, "Could not evaluate statement %s\r\n", line.c_str());
         return SCRIPT_ERROR;
+    }
+
+    if (callStackItem.returnLineNumber != -1)
+    {
+        LOG(Log::LOG_INFO, "Need to execute function %s\r\n", callStackItem.functionName.c_str());
+        return pushCallStack(callStackItem);
     }
 
     if (conditionToCheck)
@@ -1051,10 +827,17 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, s
 {
     bool conditionToCheck = false;
 
-    if (!evaluateStatement(line, extCommands, &conditionToCheck))
+    const auto &callStackItem = evaluateStatement(line, lineNumber, extCommands, &conditionToCheck);
+    if (callStackItem.error == true)
     {
-        LOG(Log::LOG_DEBUG, "\tCould not evaluate statement %s\r\n", line.c_str());
+        LOG(Log::LOG_ERROR, "Could not evaluate statement %s\r\n", line.c_str());
         return SCRIPT_ERROR;
+    }
+
+    if (callStackItem.returnLineNumber != -1)
+    {
+        LOG(Log::LOG_INFO, "Need to execute function %s\r\n", callStackItem.functionName.c_str());
+        return pushCallStack(callStackItem);
     }
 
     if (conditionToCheck)
@@ -1079,28 +862,49 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, s
     }
 }
 
-int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount)
+int DuckyInterpreter::handleFUNCTION(const std::string &filePath, int lineNumber, std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+{
+    const auto args = Ducky::SplitString(line);
+
+    if (args.size() != 2)
+    {
+        LOG(Log::LOG_ERROR, "Invalid function declaration %d\n", args.size());
+        return false;
+    }
+
+    const int endOfFunction = skipLineUntilCondition(filePath, lineNumber + 1, std::vector<std::string>(), std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixEND_FUNCTION});
+
+    if (_lineNumber == SCRIPT_ERROR)
+    {
+        LOG(Log::LOG_DEBUG, "\tError EOF while looking for END_WHILE\r\n");
+        return SCRIPT_ERROR;
+    }
+
+    auto functionName = args[1];
+    _funcLookup[functionName] = _lineNumber + 1;
+
+    return endOfFunction + 1;
+}
+
+int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount, std::function<bool(std::string)> func)
 {
     LOG(Log::LOG_DEBUG, "\tSkipping lines until condition(s) is met\r\n");
 
     // need to skip instructions until we hit endCondition whilst making sure that we aren't
     // using any statements that would cause nesting with our comparisions!
 
+    std::string line;
     while (true)
     {
         // increment line and read
         lineNumber++;
-        auto line = _readLineFunc(filePath, lineNumber);
 
-        if (line.empty())
+        const auto readStatus = getLineAndProcess(filePath, lineNumber, line);
+        if (readStatus == SCRIPT_ERROR || readStatus == END_OF_FILE)
         {
             LOG(Log::LOG_DEBUG, "\tError EOF while looking for end condition\r\n");
-            return SCRIPT_ERROR;
+            break;
         }
-
-        // sanitise
-        ltrim(line);
-        rtrim(line);
 
         bool incrementLineNumber = false;
 
@@ -1155,21 +959,17 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
                 }
             }
         }
+
+        if (func != nullptr)
+        {
+            if (!func(line))
+            {
+                return SCRIPT_ERROR;
+            }
+        }
     }
 
     return lineNumber;
-}
-
-static bool isStringDigits(const std::string &str)
-{
-    for (char c : str)
-    {
-        if (!isdigit(c))
-        {
-            return false;
-        }
-    }
-    return true;
 }
 
 bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::string &arg, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
@@ -1193,8 +993,17 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
     {
         for (auto &condition : parseCondition(arg))
         {
-            int lhsValue = this->evaluate(std::get<0>(condition), extCommands);
-            int rhsValue = this->evaluate(std::get<2>(condition), extCommands);
+            const auto &lhsEvalResult = this->evaluate(std::get<0>(condition), extCommands);
+            const auto &rhsEvalResult = this->evaluate(std::get<2>(condition), extCommands);
+
+            if (lhsEvalResult.requiresScriptEvaluation || rhsEvalResult.requiresScriptEvaluation)
+            {
+                return false;
+            }
+
+            int lhsValue = lhsEvalResult.evaluationResult;
+            int rhsValue = rhsEvalResult.evaluationResult;
+
             auto op = std::get<1>(condition);
             LOG(Log::LOG_DEBUG, "Processing condition LHS=%d, OP=%d, RHS=%d\r\n", lhsValue, op, rhsValue);
 
@@ -1228,34 +1037,57 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
     return true;
 }
 
-// -1 error
-//
-int DuckyInterpreter::Execute(const std::string &filePath,
-                              int lineNumber,
-                              std::unordered_map<std::string,
-                                                 std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands,
-                              std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
+int DuckyInterpreter::pushCallStack(const CallStackItem &item)
 {
-    if (lineNumber < 0)
+    const auto functionLineNumber = _funcLookup[item.functionName];
+    LOG(Log::LOG_DEBUG, "Setting lineNumber to %d to execute function %s\r\n", functionLineNumber, item.functionName);
+    _callstack.emplace(item);
+    _lineNumber = functionLineNumber;
+    return functionLineNumber;
+}
+
+int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &lineNum, std::string &line)
+{
+    int ret = SCRIPT_ERROR;
+
+    if (lineNum < 0)
     {
-        LOG(Log::LOG_DEBUG, "Bad line number %d\r\n", lineNumber);
-        return lineNumber;
+        LOG(Log::LOG_DEBUG, "Bad line number %d\r\n", lineNum);
+        return SCRIPT_ERROR;
     }
 
-    std::string line = _readLineFunc(filePath, lineNumber);
+    line = _readLineFunc(filePath, lineNum);
     if (line.empty())
     {
         LOG(Log::LOG_DEBUG, "EOF\r\n");
         return END_OF_FILE;
     }
 
-    LOG(Log::LOG_DEBUG, "Processing line %d\r\n", lineNumber);
-
-    int ret = SCRIPT_ERROR;
-    bool commandExitCode = true;
+    LOG(Log::LOG_DEBUG, "Processing line %d\r\n", lineNum);
 
     ltrim(line);
     rtrim(line);
+
+    ret = lineNum;
+
+    return ret;
+}
+
+// -1 error
+//
+int DuckyInterpreter::Execute(const std::string &filePath,
+                              std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands,
+                              std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
+{
+    bool commandExitCode = true;
+    std::string line;
+    auto ret = getLineAndProcess(filePath, _lineNumber, line);
+
+    if (ret == SCRIPT_ERROR || ret == END_OF_FILE)
+    {
+        return ret;
+    }
+
     if (!line.empty())
     {
         // First we need to loop through any constants that have been defined and replace
@@ -1274,15 +1106,26 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         rtrim(command);
         LOG(Log::LOG_DEBUG, "COMMAND = '%s'\r\n", command.c_str());
 
-        if (line.substr(0, prefixIF.size()) == prefixIF) // is this an IF statement, if so we handle lineNumber differently
+        if (line.substr(0, prefixSTRING.size()) == prefixSTRING && line.size() == prefixSTRING.size() ||
+            line.substr(0, prefixSTRINGLN.size()) == prefixSTRINGLN && line.size() == prefixSTRINGLN.size()) // if after trimming everything we've got an empty STRING then we have a STRING block
+        {
+            auto& function = _commandMap[line.size() == prefixSTRING.size() ? prefixSTRING : prefixSTRINGLN];
+            const auto& endMarker = line.size() == prefixSTRING.size() ? prefixEND_STRING : prefixEND_STRINGLN;
+
+            _lineNumber = skipLineUntilCondition(filePath, _lineNumber, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, 0, function);
+            commandExitCode = true;
+        }
+        else if (line.substr(0, prefixIF.size()) == prefixIF) // is this an IF statement, if so we handle lineNumber differently
         {
             // line starts with "IF "
-            return handleIF(filePath, lineNumber, line, extCommands);
+            _lineNumber = handleIF(filePath, _lineNumber, line, extCommands);
+            return _lineNumber;
         }
         else if (line.substr(0, PrefixWHILE.size()) == PrefixWHILE) // is this an IF statement, if so we handle lineNumber differently
         {
             // line starts with "WHILE "
-            return handleWHILE(filePath, lineNumber, line, extCommands);
+            _lineNumber = handleWHILE(filePath, _lineNumber, line, extCommands);
+            return _lineNumber;
         }
         else if (line.substr(0, EndWHILE.size()) == EndWHILE) // END_WHILE needs to pop stack and evaluate initial condition
         {
@@ -1290,24 +1133,29 @@ int DuckyInterpreter::Execute(const std::string &filePath,
             if (_whileLoopLineNumbers.size() == 0)
             {
                 // we've exited the while loop
-                LOG(Log::LOG_DEBUG, "No return point, WHILE LOOP complete\r\n", lineNumber);
+                LOG(Log::LOG_DEBUG, "No return point, WHILE LOOP complete\r\n", _lineNumber);
                 commandExitCode = true;
             }
             else
             {
-                lineNumber = _whileLoopLineNumbers.top();
+                _lineNumber = _whileLoopLineNumbers.top();
                 _whileLoopLineNumbers.pop();
-                LOG(Log::LOG_DEBUG, "Jumping to line '%d'\r\n", lineNumber);
-                return Execute(filePath, lineNumber, extCommands, userDefinedConstValues);
+                LOG(Log::LOG_DEBUG, "Jumping to line '%d'\r\n", _lineNumber);
+                return Execute(filePath, extCommands, userDefinedConstValues);
             }
         }
         else if (line.substr(0, prefixELSE.size()) == prefixELSE) // current execution has ended in a ELSE, we need to skip until END_IF
         {
             auto endIfConditions = std::vector<std::string>{prefixEND_IF};
-            lineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{prefixIF}, endIfConditions, endIfConditions);
+            _lineNumber = skipLineUntilCondition(filePath, _lineNumber, std::vector<std::string>{prefixIF}, endIfConditions, endIfConditions);
+        }
+        else if (line.substr(0, prefixFUNCTION.size()) == prefixFUNCTION) // current execution has ended in a ELSE, we need to skip until END_IF
+        {
+            _lineNumber = handleFUNCTION(filePath, _lineNumber, line, extCommands);
         }
         else if (line.substr(0, RestartPayload.size()) == RestartPayload) // need to handle this cmd here as its changing the line number
         {
+            _lineNumber = 0;
             return 0;
         }
         else if (extCommands.find(command) != extCommands.cend()) // first check if we have a extension command set for this string
@@ -1316,13 +1164,31 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         }
         else if (_commandMap.find(command) != _commandMap.cend())
         {
-            LOG(Log::LOG_DEBUG, "COMMAND FOUND\r\n");
+            LOG(Log::LOG_DEBUG, "COMMAND FOUND '%s'\r\n", command.c_str());
             string arg = line.substr(line.find(' ') + 1);
 
             rtrim(arg);
 
             LOG(Log::LOG_DEBUG, "arg = '%s'\n", arg.c_str());
             commandExitCode = _commandMap[command](arg);
+        }
+        else if (_funcLookup.find(command) != _funcLookup.cend())
+        {
+            const auto functionLineNumber = _funcLookup[command];
+            LOG(Log::LOG_DEBUG, "FUNCTION FOUND, jumping to %d\r\n", functionLineNumber);
+
+            DuckyInterpreter::CallStackItem item{
+                .error = false,
+                .returnLineNumber = _lineNumber,
+                .functionName = command};
+            return pushCallStack(item);
+        }
+        else if (line.substr(0, prefixEND_FUNCTION.size()) == prefixEND_FUNCTION) // pop call stack for end_function
+        {
+            const auto &callStackItem = _callstack.top();
+            LOG(Log::LOG_DEBUG, "END_FUNCTION FOUND, jumping to %d\r\n", callStackItem.returnLineNumber);
+            _lineNumber = callStackItem.returnLineNumber;
+            _callstack.pop();
         }
         else if (line.size() >= 2 && line[0] == '$')
         {
@@ -1365,13 +1231,14 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         if (!commandExitCode)
         {
             LOG(Log::LOG_ERROR, "Failed processing = '%s'\n", line.c_str());
+            ret = SCRIPT_ERROR;
         }
     }
 
     if (commandExitCode)
     {
-        ++lineNumber;
-        ret = lineNumber;
+        ++_lineNumber;
+        ret = _lineNumber;
     }
 
     return ret;

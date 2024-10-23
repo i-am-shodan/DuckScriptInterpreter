@@ -1,0 +1,11 @@
+STRING
+a
+b
+c   
+END_STRING
+
+STRINGLN
+a
+b
+c   
+END_STRINGLN
