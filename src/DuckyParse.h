@@ -106,6 +106,21 @@ public:
     std::vector<std::string> splitString(const std::string &input);
 
 private:
+    struct EvaluationResult
+    {
+        bool error = true;
+        bool requiresScriptEvaluation = false;
+        int evaluationResult = 0;
+        std::string functionName;
+    };
+
+    struct CallStackItem
+    {
+        bool error = false;
+        int returnLineNumber = -1;
+        std::string functionName;
+    };
+
     std::function<void(uint32_t)> _delayFunc;
     std::function<std::string(const std::string &, int)> _readLineFunc;
     std::function<void(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t)> _keyboardPressFunc;
@@ -119,9 +134,8 @@ private:
     std::unordered_map<std::string, int> _variables;
     std::stack<int> _whileLoopLineNumbers;
     std::string _keyboardLayout;
-    std::string _performUserDefinedScriptFunctionEvaluation;
     std::unordered_map<std::string, int> _funcLookup;
-    std::stack<int> _callstack;
+    std::stack<CallStackItem> _callstack;
     int _lineNumber;
 
     USBKeyDefinition getUSBKeyDefinition(const std::string &);
@@ -129,14 +143,14 @@ private:
     int handleIF(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
     int handleWHILE(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
     int handleFUNCTION(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
-    bool evaluateStatement(std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &, bool *condition);
+    CallStackItem evaluateStatement(std::string &, int, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &, bool *condition);
     std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
-    int evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
+    EvaluationResult evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
     inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
     int skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0);
     bool assignToVariable(const std::string &variableName, std::string &args, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
     int evaluateIntegerExpression(const std::string &line);
-    int setLineIfFunctionNeedsToBeExecuted();
+    int pushCallStack(const CallStackItem &item);
 
 public:
     DuckyInterpreter(

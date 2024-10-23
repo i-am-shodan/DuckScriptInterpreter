@@ -143,7 +143,6 @@ DuckyInterpreter::DuckyInterpreter(
       _variables(),
       _whileLoopLineNumbers(),
       _keyboardLayout(),
-      _performUserDefinedScriptFunctionEvaluation(),
       _funcLookup(),
       _callstack(),
       _lineNumber(0)
@@ -359,14 +358,12 @@ DuckyInterpreter::DuckyInterpreter(
     _commandMap["RETURN"] = [this](string arg)
     {
         const int value = evaluateIntegerExpression(arg);
-        const std::string variableKey = _performUserDefinedScriptFunctionEvaluation + "_RET";
+        const std::string variableKey = _callstack.top().functionName + "_RET";
         _variables[variableKey] = value;
 
-        _lineNumber = _callstack.top() - 1; // todo I hate this, this is to stop the increment that happens after
+        _lineNumber = _callstack.top().returnLineNumber - 1; // todo I hate this, this is to stop the increment that happens after
         LOG(Log::LOG_DEBUG, "RETURN FOUND, jumping to %d\r\n", _lineNumber);
         _callstack.pop();
-
-        _performUserDefinedScriptFunctionEvaluation.clear();
 
         return true;
     };
@@ -604,9 +601,10 @@ static std::string extractCondition(const std::string &line)
     return condition;
 }
 
-int DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
 {
     LOG(Log::LOG_DEBUG, "\t\tStatement = '%s'\r\n", str.c_str());
+    EvaluationResult ret = {0};
 
     for (const auto &pair : _variables)
     {
@@ -624,9 +622,9 @@ int DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string,
     if (extCommands.find(str) != extCommands.cend())
     {
         LOG(Log::LOG_DEBUG, "\t\tFound extension command to run: %s\r\n", str.c_str());
-        return extCommands[str](str, _constants, _variables);
+        ret.evaluationResult = extCommands[str](str, _constants, _variables);
     }
-    if (_funcLookup.find(str) != _funcLookup.cend())
+    else if (_funcLookup.find(str) != _funcLookup.cend())
     {
         LOG(Log::LOG_DEBUG, "\t\tFound user defined function: %s\r\n", str.c_str());
 
@@ -635,23 +633,25 @@ int DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string,
         if (_variables.find(variableKey) == _variables.cend())
         {
             LOG(Log::LOG_DEBUG, "\t\tReturn code not found, requesting function evaluation\r\n");
-            // we need to evaluate the function and set the special _RET variable
-            _performUserDefinedScriptFunctionEvaluation = str;
-            return 0;
+            ret.functionName = str;
+            ret.requiresScriptEvaluation = true;
         }
         else
         {
             auto retValue = _variables[variableKey];
             LOG(Log::LOG_DEBUG, "\t\tReturn code found %d\r\n", retValue);
             _variables.erase(variableKey);
-            return retValue;
+            ret.evaluationResult = retValue;
         }
     }
     else
     {
         LOG(Log::LOG_DEBUG, "\t\tEvaluating text expression: %s\r\n", str.c_str());
-        return evaluateIntegerExpression(str);
+        ret.evaluationResult = evaluateIntegerExpression(str);
     }
+
+    ret.error = false;
+    return ret;
 }
 
 int DuckyInterpreter::evaluateIntegerExpression(const std::string &str)
@@ -672,16 +672,18 @@ int DuckyInterpreter::evaluateIntegerExpression(const std::string &str)
     }
 }
 
-bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, bool *conditionToCheck)
+DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(std::string &line, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, bool *conditionToCheck)
 {
     LOG(Log::LOG_DEBUG, "Handling statement\r\n");
+    CallStackItem ret;
+    ret.returnLineNumber = -1;
+    ret.error = true;
 
-    _performUserDefinedScriptFunctionEvaluation.clear();
     auto conditionStr = extractCondition(line);
 
     if (conditionStr.length() == 0)
     {
-        return false;
+        return ret;
     }
 
     LOG(Log::LOG_DEBUG, "\tCondition = '%s'\r\n", conditionStr.c_str());
@@ -695,19 +697,27 @@ bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<s
         auto op = std::get<1>(condition);
 
         LOG(Log::LOG_DEBUG, "\tEvaluating condition LHS = %s, OP = %d, RHS = %s\r\n", lhsStr.c_str(), op, rhsStr.c_str());
-        int lhsValue = this->evaluate(lhsStr, extCommands);
-        // if performUserDefinedScriptFunctionEvaluation is set we need to immediately return to enable
-        // this to be evaluated, we will then return here and pick off where we left off
-        if (!_performUserDefinedScriptFunctionEvaluation.empty())
+        const auto &lhsEvalResult = this->evaluate(lhsStr, extCommands);
+
+        if (lhsEvalResult.requiresScriptEvaluation)
         {
-            return false;
+            ret.error = false;
+            ret.returnLineNumber = lineNumber;
+            ret.functionName = lhsEvalResult.functionName;
+            return ret;
         }
 
-        int rhsValue = this->evaluate(rhsStr, extCommands);
-        if (!_performUserDefinedScriptFunctionEvaluation.empty())
+        const auto &rhsEvalResult = this->evaluate(rhsStr, extCommands);
+        if (rhsEvalResult.requiresScriptEvaluation)
         {
-            return false;
+            ret.error = false;
+            ret.returnLineNumber = lineNumber;
+            ret.functionName = rhsEvalResult.functionName;
+            return ret;
         }
+
+        int lhsValue = lhsEvalResult.evaluationResult;
+        int rhsValue = rhsEvalResult.evaluationResult;
 
         switch (op)
         {
@@ -734,7 +744,8 @@ bool DuckyInterpreter::evaluateStatement(std::string &line, std::unordered_map<s
         }
     }
 
-    return true;
+    ret.error = false;
+    return ret;
 }
 
 // the job of this function is to evaluate the condition and if true to increment the line number
@@ -743,14 +754,17 @@ int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std:
 {
     bool conditionToCheck = false;
 
-    if (!evaluateStatement(line, extCommands, &conditionToCheck))
+    const auto &callStackItem = evaluateStatement(line, lineNumber, extCommands, &conditionToCheck);
+    if (callStackItem.error == true)
     {
-        auto ret = setLineIfFunctionNeedsToBeExecuted();
-        if (ret == SCRIPT_ERROR)
-        {
-            LOG(Log::LOG_ERROR, "Could not evaluate statement %s\r\n", line.c_str());
-        }
-        return ret;
+        LOG(Log::LOG_ERROR, "Could not evaluate statement %s\r\n", line.c_str());
+        return SCRIPT_ERROR;
+    }
+
+    if (callStackItem.returnLineNumber != -1)
+    {
+        LOG(Log::LOG_INFO, "Need to execute function %s\r\n", callStackItem.functionName.c_str());
+        return pushCallStack(callStackItem);
     }
 
     if (conditionToCheck)
@@ -809,14 +823,17 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, s
 {
     bool conditionToCheck = false;
 
-    if (!evaluateStatement(line, extCommands, &conditionToCheck))
+    const auto &callStackItem = evaluateStatement(line, lineNumber, extCommands, &conditionToCheck);
+    if (callStackItem.error == true)
     {
-        auto ret = setLineIfFunctionNeedsToBeExecuted();
-        if (ret == SCRIPT_ERROR)
-        {
-            LOG(Log::LOG_ERROR, "Could not evaluate statement %s\r\n", line.c_str());
-        }
-        return ret;
+        LOG(Log::LOG_ERROR, "Could not evaluate statement %s\r\n", line.c_str());
+        return SCRIPT_ERROR;
+    }
+
+    if (callStackItem.returnLineNumber != -1)
+    {
+        LOG(Log::LOG_INFO, "Need to execute function %s\r\n", callStackItem.functionName.c_str());
+        return pushCallStack(callStackItem);
     }
 
     if (conditionToCheck)
@@ -967,8 +984,17 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
     {
         for (auto &condition : parseCondition(arg))
         {
-            int lhsValue = this->evaluate(std::get<0>(condition), extCommands);
-            int rhsValue = this->evaluate(std::get<2>(condition), extCommands);
+            const auto &lhsEvalResult = this->evaluate(std::get<0>(condition), extCommands);
+            const auto &rhsEvalResult = this->evaluate(std::get<2>(condition), extCommands);
+
+            if (lhsEvalResult.requiresScriptEvaluation || rhsEvalResult.requiresScriptEvaluation)
+            {
+                return false;
+            }
+
+            int lhsValue = lhsEvalResult.evaluationResult;
+            int rhsValue = rhsEvalResult.evaluationResult;
+
             auto op = std::get<1>(condition);
             LOG(Log::LOG_DEBUG, "Processing condition LHS=%d, OP=%d, RHS=%d\r\n", lhsValue, op, rhsValue);
 
@@ -1002,20 +1028,13 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
     return true;
 }
 
-int DuckyInterpreter::setLineIfFunctionNeedsToBeExecuted()
+int DuckyInterpreter::pushCallStack(const CallStackItem &item)
 {
-    if (_performUserDefinedScriptFunctionEvaluation.empty())
-    {
-        return SCRIPT_ERROR;
-    }
-    else
-    {
-        const auto functionLineNumber = _funcLookup[_performUserDefinedScriptFunctionEvaluation];
-        LOG(Log::LOG_DEBUG, "FUNCTION FOUND, jumping to %d\r\n", functionLineNumber);
-        _callstack.emplace(_lineNumber);
-        _lineNumber = functionLineNumber;
-        return functionLineNumber;
-    }
+    const auto functionLineNumber = _funcLookup[item.functionName];
+    LOG(Log::LOG_DEBUG, "Setting lineNumber to %d to execute function %s\r\n", functionLineNumber, item.functionName);
+    _callstack.emplace(item);
+    _lineNumber = functionLineNumber;
+    return functionLineNumber;
 }
 
 // -1 error
@@ -1123,14 +1142,20 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         {
             const auto functionLineNumber = _funcLookup[command];
             LOG(Log::LOG_DEBUG, "FUNCTION FOUND, jumping to %d\r\n", functionLineNumber);
-            _callstack.emplace(_lineNumber);
-            _lineNumber = functionLineNumber;
-            return functionLineNumber;
+
+            DuckyInterpreter::CallStackItem item
+            {
+                .error = false,
+                .returnLineNumber = _lineNumber,
+                .functionName = command
+            };
+            return pushCallStack(item);
         }
         else if (line.substr(0, prefixEND_FUNCTION.size()) == prefixEND_FUNCTION) // pop call stack for end_function
         {
-            _lineNumber = _callstack.top();
-            LOG(Log::LOG_DEBUG, "END_FUNCTION FOUND, jumping to %d\r\n", _lineNumber);
+            const auto& callStackItem = _callstack.top();
+            LOG(Log::LOG_DEBUG, "END_FUNCTION FOUND, jumping to %d\r\n", callStackItem.returnLineNumber);
+            _lineNumber = callStackItem.returnLineNumber;
             _callstack.pop();
         }
         else if (line.size() >= 2 && line[0] == '$')
