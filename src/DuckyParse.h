@@ -147,10 +147,11 @@ private:
     std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
     EvaluationResult evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
     inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
-    int skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0);
+    int skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0, std::function<bool(std::string)> func = nullptr);
     bool assignToVariable(const std::string &variableName, std::string &args, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
     int evaluateIntegerExpression(const std::string &line);
     int pushCallStack(const CallStackItem &item);
+    int getLineAndProcess(const std::string &filePath, const int &lineNum, std::string &line);
 
 public:
     DuckyInterpreter(

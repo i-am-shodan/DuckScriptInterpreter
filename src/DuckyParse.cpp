@@ -41,6 +41,10 @@ static const std::string THENSuffix = " THEN";
 static const std::string prefixFUNCTION = "FUNCTION ";
 static const std::string prefixEND_FUNCTION = "END_FUNCTION";
 static const std::string RestartPayload = "RESTART_PAYLOAD";
+static const std::string prefixSTRING = "STRING";
+static const std::string prefixEND_STRING = "END_STRING";
+static const std::string prefixSTRINGLN = "STRINGLN";
+static const std::string prefixEND_STRINGLN = "END_STRINGLN";
 
 static std::unordered_map<std::string, DuckyInterpreter::DuckyScriptOperator> operatorMap = {
     {"==", DuckyInterpreter::DuckyScriptOperator::EQ},
@@ -188,7 +192,7 @@ DuckyInterpreter::DuckyInterpreter(
         return true;
     };
 
-    _commandMap["STRING"] = [this](string arg)
+    _commandMap[prefixSTRING] = [this](string arg)
     {
         bool ret = true;
         LOG(Log::LOG_DEBUG, "STRING arg = %s\n", arg.c_str());
@@ -215,9 +219,9 @@ DuckyInterpreter::DuckyInterpreter(
         return ret;
     };
 
-    _commandMap["STRINGLN"] = [this](string arg)
+    _commandMap[prefixSTRINGLN] = [this](string arg)
     {
-        const auto ret = _commandMap["STRING"](arg);
+        const auto ret = _commandMap[prefixSTRING](arg);
 
         if (ret)
         {
@@ -882,28 +886,25 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, int lineNumber
     return endOfFunction + 1;
 }
 
-int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount)
+int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount, std::function<bool(std::string)> func)
 {
     LOG(Log::LOG_DEBUG, "\tSkipping lines until condition(s) is met\r\n");
 
     // need to skip instructions until we hit endCondition whilst making sure that we aren't
     // using any statements that would cause nesting with our comparisions!
 
+    std::string line;
     while (true)
     {
         // increment line and read
         lineNumber++;
-        auto line = _readLineFunc(filePath, lineNumber);
 
-        if (line.empty())
+        const auto readStatus = getLineAndProcess(filePath, lineNumber, line);
+        if (readStatus == SCRIPT_ERROR || readStatus == END_OF_FILE)
         {
             LOG(Log::LOG_DEBUG, "\tError EOF while looking for end condition\r\n");
-            return SCRIPT_ERROR;
+            break;
         }
-
-        // sanitise
-        ltrim(line);
-        rtrim(line);
 
         bool incrementLineNumber = false;
 
@@ -956,6 +957,14 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
                         return lineNumber;
                     }
                 }
+            }
+        }
+
+        if (func != nullptr)
+        {
+            if (!func(line))
+            {
+                return SCRIPT_ERROR;
             }
         }
     }
@@ -1037,32 +1046,48 @@ int DuckyInterpreter::pushCallStack(const CallStackItem &item)
     return functionLineNumber;
 }
 
-// -1 error
-//
-int DuckyInterpreter::Execute(const std::string &filePath,
-                              std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands,
-                              std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
+int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &lineNum, std::string &line)
 {
-    if (_lineNumber < 0)
+    int ret = SCRIPT_ERROR;
+
+    if (lineNum < 0)
     {
-        LOG(Log::LOG_DEBUG, "Bad line number %d\r\n", _lineNumber);
-        return _lineNumber;
+        LOG(Log::LOG_DEBUG, "Bad line number %d\r\n", lineNum);
+        return SCRIPT_ERROR;
     }
 
-    std::string line = _readLineFunc(filePath, _lineNumber);
+    line = _readLineFunc(filePath, lineNum);
     if (line.empty())
     {
         LOG(Log::LOG_DEBUG, "EOF\r\n");
         return END_OF_FILE;
     }
 
-    LOG(Log::LOG_DEBUG, "Processing line %d\r\n", _lineNumber);
-
-    int ret = SCRIPT_ERROR;
-    bool commandExitCode = true;
+    LOG(Log::LOG_DEBUG, "Processing line %d\r\n", lineNum);
 
     ltrim(line);
     rtrim(line);
+
+    ret = lineNum;
+
+    return ret;
+}
+
+// -1 error
+//
+int DuckyInterpreter::Execute(const std::string &filePath,
+                              std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands,
+                              std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
+{
+    bool commandExitCode = true;
+    std::string line;
+    auto ret = getLineAndProcess(filePath, _lineNumber, line);
+
+    if (ret == SCRIPT_ERROR || ret == END_OF_FILE)
+    {
+        return ret;
+    }
+
     if (!line.empty())
     {
         // First we need to loop through any constants that have been defined and replace
@@ -1081,7 +1106,16 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         rtrim(command);
         LOG(Log::LOG_DEBUG, "COMMAND = '%s'\r\n", command.c_str());
 
-        if (line.substr(0, prefixIF.size()) == prefixIF) // is this an IF statement, if so we handle lineNumber differently
+        if (line.substr(0, prefixSTRING.size()) == prefixSTRING && line.size() == prefixSTRING.size() ||
+            line.substr(0, prefixSTRINGLN.size()) == prefixSTRINGLN && line.size() == prefixSTRINGLN.size()) // if after trimming everything we've got an empty STRING then we have a STRING block
+        {
+            auto& function = _commandMap[line.size() == prefixSTRING.size() ? prefixSTRING : prefixSTRINGLN];
+            const auto& endMarker = line.size() == prefixSTRING.size() ? prefixEND_STRING : prefixEND_STRINGLN;
+
+            _lineNumber = skipLineUntilCondition(filePath, _lineNumber, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, 0, function);
+            commandExitCode = true;
+        }
+        else if (line.substr(0, prefixIF.size()) == prefixIF) // is this an IF statement, if so we handle lineNumber differently
         {
             // line starts with "IF "
             _lineNumber = handleIF(filePath, _lineNumber, line, extCommands);
@@ -1130,7 +1164,7 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         }
         else if (_commandMap.find(command) != _commandMap.cend())
         {
-            LOG(Log::LOG_DEBUG, "COMMAND FOUND\r\n");
+            LOG(Log::LOG_DEBUG, "COMMAND FOUND '%s'\r\n", command.c_str());
             string arg = line.substr(line.find(' ') + 1);
 
             rtrim(arg);
@@ -1143,17 +1177,15 @@ int DuckyInterpreter::Execute(const std::string &filePath,
             const auto functionLineNumber = _funcLookup[command];
             LOG(Log::LOG_DEBUG, "FUNCTION FOUND, jumping to %d\r\n", functionLineNumber);
 
-            DuckyInterpreter::CallStackItem item
-            {
+            DuckyInterpreter::CallStackItem item{
                 .error = false,
                 .returnLineNumber = _lineNumber,
-                .functionName = command
-            };
+                .functionName = command};
             return pushCallStack(item);
         }
         else if (line.substr(0, prefixEND_FUNCTION.size()) == prefixEND_FUNCTION) // pop call stack for end_function
         {
-            const auto& callStackItem = _callstack.top();
+            const auto &callStackItem = _callstack.top();
             LOG(Log::LOG_DEBUG, "END_FUNCTION FOUND, jumping to %d\r\n", callStackItem.returnLineNumber);
             _lineNumber = callStackItem.returnLineNumber;
             _callstack.pop();
@@ -1199,6 +1231,7 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         if (!commandExitCode)
         {
             LOG(Log::LOG_ERROR, "Failed processing = '%s'\n", line.c_str());
+            ret = SCRIPT_ERROR;
         }
     }
 
