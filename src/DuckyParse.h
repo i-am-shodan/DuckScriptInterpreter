@@ -137,6 +137,7 @@ private:
     std::unordered_map<std::string, int> _funcLookup;
     std::stack<CallStackItem> _callstack;
     int _lineNumber;
+    std::string currentlyExecutingFile;
 
     USBKeyDefinition getUSBKeyDefinition(const std::string &);
     bool performKeyPressesForList(const std::vector<std::pair<bool, uint8_t>> &);
@@ -170,6 +171,11 @@ public:
                 std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues);
 
     bool SetKeyboardLayout(const std::string &layout);
+
+    void Restart()
+    {
+        _lineNumber = 0;
+    }
 };
 
 inline DuckyInterpreter::USB_MODE operator|(DuckyInterpreter::USB_MODE a, DuckyInterpreter::USB_MODE b)

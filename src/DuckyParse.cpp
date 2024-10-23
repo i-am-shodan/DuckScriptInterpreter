@@ -1079,6 +1079,13 @@ int DuckyInterpreter::Execute(const std::string &filePath,
                               std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands,
                               std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
 {
+    // reset line if the filename has changed
+    if (filePath != currentlyExecutingFile)
+    {
+        currentlyExecutingFile = filePath;
+        Restart();
+    }
+
     bool commandExitCode = true;
     std::string line;
     auto ret = getLineAndProcess(filePath, _lineNumber, line);
