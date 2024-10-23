@@ -230,7 +230,7 @@ void runTest(int id, std::string filename, std::string output, std::string lang 
     int lineNum = 0;
     do
     {
-        lineNum = ducky.Execute(filename, lineNum, extCommands, consts);
+        lineNum = ducky.Execute(filename, extCommands, consts);
     } while (lineNum != DuckyInterpreter::END_OF_FILE && lineNum != DuckyInterpreter::SCRIPT_ERROR);
 
     if (lineNum == DuckyInterpreter::END_OF_FILE && testString == output) { printf("[%d] - PASSED\n", id); } else { printf("[%d] - FAILED\n", id); }     
@@ -256,6 +256,7 @@ int main(void) {
     runTest(16, "examples/nested_statements.txt", "P4R4P4R4P4R4P4R4P4R4");
     runTest(17, "examples/if_elseif_elseif.txt", "P4R4P5R5P6R6P4R4P5R5");
     runTest(18, "examples/languk.txt", "P225P100R100R225P49R49P225P49R49R225P49R49P225P31R31R225P225P52R52R225", "win_en-GB");
+    runTest(19, "examples/function.txt", "P4R4P5R5P6R6P4R4P5R5P7R7");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

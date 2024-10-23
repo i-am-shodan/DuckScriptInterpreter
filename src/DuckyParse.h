@@ -118,18 +118,25 @@ private:
     std::unordered_map<std::string, std::string> _constants;
     std::unordered_map<std::string, int> _variables;
     std::stack<int> _whileLoopLineNumbers;
-    std::string keyboardLayout;
+    std::string _keyboardLayout;
+    std::string _performUserDefinedScriptFunctionEvaluation;
+    std::unordered_map<std::string, int> _funcLookup;
+    std::stack<int> _callstack;
+    int _lineNumber;
 
     USBKeyDefinition getUSBKeyDefinition(const std::string &);
     bool performKeyPressesForList(const std::vector<std::pair<bool, uint8_t>> &);
     int handleIF(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
     int handleWHILE(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
+    int handleFUNCTION(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
     bool evaluateStatement(std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &, bool *condition);
     std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
     int evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
     inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
     int skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0);
     bool assignToVariable(const std::string &variableName, std::string &args, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
+    int evaluateIntegerExpression(const std::string &line);
+    int setLineIfFunctionNeedsToBeExecuted();
 
 public:
     DuckyInterpreter(
@@ -142,13 +149,12 @@ public:
         std::function<void(DuckyInterpreter::USB_MODE &, const uint16_t &, const uint16_t &, const std::string &, const std::string &, const std::string &)> changeModeFunc,
         std::function<void()> reset);
 
-    int Execute(const std::string &filePath, 
-                int lineNumber, 
-                std::unordered_map<std::string, 
-                std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, 
+    int Execute(const std::string &filePath,
+                std::unordered_map<std::string,
+                                   std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands,
                 std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues);
 
-    bool SetKeyboardLayout(const std::string& layout);
+    bool SetKeyboardLayout(const std::string &layout);
 };
 
 inline DuckyInterpreter::USB_MODE operator|(DuckyInterpreter::USB_MODE a, DuckyInterpreter::USB_MODE b)
@@ -192,4 +198,99 @@ namespace Ducky
 
         return words;
     }
+
+    static std::string lowerCaseString(const std::string &str)
+    {
+        std::string result = str;
+        std::transform(result.begin(), result.end(), result.begin(),
+                       [](unsigned char c)
+                       { return std::tolower(c); });
+        return result;
+    }
+
+    static std::string replaceString(std::string subject, const std::string &search, const std::string &replace)
+    {
+        size_t pos = 0;
+        while ((pos = subject.find(search, pos)) != std::string::npos)
+        {
+            subject.replace(pos, search.length(), replace);
+            pos += replace.length();
+        }
+        return subject;
+    }
+
+    static std::string replaceAllOccurrences(const std::string &subject, const std::string &search, const std::string &replace)
+    {
+        std::string result = subject;
+        size_t pos = 0;
+
+        while ((pos = result.find(search, pos)) != std::string::npos)
+        {
+            result.replace(pos, search.length(), replace);
+            pos += replace.length();
+        }
+
+        return result;
+    }
+
+    static void replaceAllOccurrences(std::string &str, const char from, const char to)
+    {
+        size_t pos = 0;
+        while ((pos = str.find(from, pos)) != std::string::npos)
+        {
+            str.replace(pos, 1, 1, to);
+            ++pos; // Move to the next position
+        }
+    }
+
+    // trim from end (in place)
+    static inline void rtrim(std::string &s)
+    {
+        s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch)
+                             { return !std::isspace(ch); })
+                    .base(),
+                s.end());
+    }
+
+    static inline void ltrim(std::string &s)
+    {
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch)
+                                        { return !std::isspace(ch); }));
+    }
+
+    static std::pair<std::string, std::string> extractFirstWord(const std::string &input)
+    {
+        // Find the position of the first space
+        size_t spacePos = input.find(' ');
+
+        if (spacePos != std::string::npos)
+        {
+            // Extract the first word
+            std::string firstWord = input.substr(0, spacePos);
+
+            // Get the remainder of the string (excluding the first word)
+            std::string remainder = input.substr(spacePos + 1);
+            rtrim(remainder);
+
+            return {firstWord, remainder};
+        }
+        else
+        {
+            // If no space found, the entire input is the first word
+            return {input, ""};
+        }
+    }
+
+    static bool isStringDigits(const std::string &str)
+    {
+        for (char c : str)
+        {
+            if (!isdigit(c))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }
