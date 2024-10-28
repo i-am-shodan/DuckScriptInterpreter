@@ -34,3 +34,5 @@ tests/test_ducky/my_program
 example/example
 /example/example
 /tests/test_ducky/my_program
+/build/unit_tests
+/build/example

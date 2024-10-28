@@ -1,0 +1,111 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++ DuckyParse.cpp",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-std=gnu++2a",
+                "-DDUCKY_LOG_INTERNAL",
+                "-DLOCALE_win_en_GB",
+                "-I${workspaceFolder}/src/",
+                "-fdiagnostics-color=always",
+                "-c",
+                "${workspaceFolder}/src/DuckyParse.cpp",
+                "-g"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++ build test_main.cpp",
+            "dependsOn": "C/C++: g++ DuckyParse.cpp",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-std=gnu++2a",
+                "-DDUCKY_LOG_INTERNAL",
+                "-DLOCALE_win_en_GB",
+                "-I${workspaceFolder}/src/",
+                "-fdiagnostics-color=always",
+                "-c",
+                "${workspaceFolder}/tests/test_ducky/test_main.cpp",
+                "-g"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: compile and link unit tests",
+            "dependsOn": "C/C++: g++ build test_main.cpp",
+            "command": "/usr/bin/g++",
+            "args": [
+                "test_main.o",
+                "DuckyParse.o",
+                "-o",
+                "unit_tests",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++ build main.cpp",
+            "dependsOn": "C/C++: g++ main.cpp",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-std=gnu++2a",
+                "-DDUCKY_LOG_INTERNAL",
+                "-DLOCALE_win_en_GB",
+                "-I${workspaceFolder}/src/",
+                "-fdiagnostics-color=always",
+                "-c",
+                "${workspaceFolder}/example/main.cpp",
+                "-g"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: compile and link example",
+            "dependsOn": "C/C++: g++ build main.cpp",
+            "command": "/usr/bin/g++",
+            "args": [
+                "main.o",
+                "DuckyParse.o",
+                "-o",
+                "example",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        }
+    ],
+    "version": "2.0.0"
+}
