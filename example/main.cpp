@@ -99,7 +99,7 @@ int main(void) {
     int lineNum = 0;
     do
     {
-        lineNum = ducky.Execute("put your read filename here", lineNum, extCommands, consts);
+        lineNum = ducky.Execute("put your read filename here", extCommands, consts);
     } while (lineNum != DuckyInterpreter::END_OF_FILE && lineNum != DuckyInterpreter::SCRIPT_ERROR);
 
     if (lineNum == DuckyInterpreter::SCRIPT_ERROR)
