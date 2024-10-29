@@ -70,6 +70,11 @@ public:
     }
 };
 
+typedef int DuckyReturn;
+typedef std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> ExtensionCommands;
+typedef std::vector<std::function<std::pair<std::string, std::string>()>> UserDefinedConstants;
+typedef std::function<DuckyReturn(const std::string&, const std::string&, const ExtensionCommands&, const UserDefinedConstants&)> StatementHandler;
+
 /// @brief Class for handling the implementation of Duck Script parsing
 class DuckyInterpreter
 {
@@ -129,7 +134,8 @@ private:
     std::function<void()> _waitForButtonPressFunc;
     std::function<void(DuckyInterpreter::USB_MODE &, const uint16_t &, const uint16_t &, const std::string &, const std::string &, const std::string &)> _changeModeFunc;
     std::function<void()> _reset;
-    std::unordered_map<std::string, std::function<bool(std::string)>> _commandMap;
+
+    std::unordered_map<std::string, StatementHandler> _statementHandlers;
     std::unordered_map<std::string, std::string> _constants;
     std::unordered_map<std::string, int> _variables;
     std::stack<int> _whileLoopLineNumbers;
@@ -141,15 +147,15 @@ private:
 
     USBKeyDefinition getUSBKeyDefinition(const std::string &);
     bool performKeyPressesForList(const std::vector<std::pair<bool, uint8_t>> &);
-    int handleIF(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
-    int handleWHILE(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
-    int handleFUNCTION(const std::string &, int, std::string &, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &);
-    CallStackItem evaluateStatement(std::string &, int, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &, bool *condition);
+    int handleIF(const std::string &filePath, const int& lineNumber, const std::string &line, const ExtensionCommands &extCommands);
+    int handleWHILE(const std::string &filePath, const int& lineNumber, const std::string &line, const ExtensionCommands &extCommands);
+    int handleFUNCTION(const std::string &filePath, const int& lineNumber, const std::string &line, const ExtensionCommands &extCommands);
+    CallStackItem evaluateStatement(const std::string &line, const int& lineNumber, const ExtensionCommands &extCommands, bool *conditionToCheck);
     std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
-    EvaluationResult evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
+    EvaluationResult evaluate(std::string &str, const ExtensionCommands &extCommands);
     inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
-    int skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0, std::function<bool(std::string)> func = nullptr);
-    bool assignToVariable(const std::string &variableName, std::string &args, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands);
+    int skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0, const StatementHandler func = nullptr);
+    bool assignToVariable(const std::string &variableName, std::string &arg, const ExtensionCommands &extCommands);
     int evaluateIntegerExpression(const std::string &line);
     int pushCallStack(const CallStackItem &item);
     int getLineAndProcess(const std::string &filePath, const int &lineNum, std::string &line);
@@ -166,9 +172,8 @@ public:
         std::function<void()> reset);
 
     int Execute(const std::string &filePath,
-                std::unordered_map<std::string,
-                                   std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands,
-                std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues);
+                const ExtensionCommands &extCommands,
+                const UserDefinedConstants &userDefinedConstValues);
 
     bool SetKeyboardLayout(const std::string &layout);
 
@@ -282,12 +287,12 @@ namespace Ducky
     static std::pair<std::string, std::string> extractFirstWord(const std::string &input)
     {
         // Find the position of the first space
-        size_t spacePos = input.find(' ');
+        const size_t spacePos = input.find(' ');
 
         if (spacePos != std::string::npos)
         {
             // Extract the first word
-            std::string firstWord = input.substr(0, spacePos);
+            const std::string firstWord = input.substr(0, spacePos);
 
             // Get the remainder of the string (excluding the first word)
             std::string remainder = input.substr(spacePos + 1);

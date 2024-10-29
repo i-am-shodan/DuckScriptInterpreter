@@ -152,18 +152,21 @@ DuckyInterpreter::DuckyInterpreter(
       _lineNumber(0)
 {
 
-    _commandMap["VAR"] = [this](string line)
+    _statementHandlers["VAR"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
-        const auto args = Ducky::SplitString(line);
+        std::string arg = line.substr(command.length() + 1);
+        ltrim(arg);
+
+        const auto args = Ducky::SplitString(arg);
 
         if (args.size() != 3 || args[1] != "=")
         {
             LOG(Log::LOG_ERROR, "Invalid variable declaration %d\n", args.size());
-            return false;
+            return (DuckyReturn) SCRIPT_ERROR;
         }
 
-        auto varName = args[0];
-        auto varValue = args[2];
+        const auto &varName = args[0];
+        const auto &varValue = args[2];
 
         int intValue = 0;
 
@@ -183,71 +186,21 @@ DuckyInterpreter::DuckyInterpreter(
         _variables[varName] = intValue;
         LOG(Log::LOG_DEBUG, "Added variable %s = %d\n", varName.c_str(), intValue);
 
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["DELAY"] = [this](string arg)
+    _statementHandlers["DELAY"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
+        std::string arg = line.substr(command.length() + 1);
+        ltrim(arg);
+
         this->_delayFunc(stoi(arg));
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap[prefixSTRING] = [this](string arg)
-    {
-        bool ret = true;
-        LOG(Log::LOG_DEBUG, "STRING arg = %s\n", arg.c_str());
-        for (const char c : arg)
-        {
-            LOG(Log::LOG_DEBUG, "Trying to print '%c'\n", c);
-            const std::string mystring = std::string(1, c);
-
-            auto key = this->getUSBKeyDefinition(mystring);
-
-            if (key.isValid())
-            {
-                LOG(Log::LOG_DEBUG, "Got a valid key\n");
-                this->_keyboardPressFunc((uint8_t)key.modifier, key.hidCode, 0, 0, 0, 0, 0);
-                this->_keyboardReleaseFunc();
-            }
-            else
-            {
-                ret = false;
-                LOG(Log::LOG_ERROR, "Got a invalid key\n");
-                break;
-            }
-        }
-        return ret;
-    };
-
-    _commandMap[prefixSTRINGLN] = [this](string arg)
-    {
-        const auto ret = _commandMap[prefixSTRING](arg);
-
-        if (ret)
-        {
-            const auto keyText = std::string("ENTER");
-            auto key = this->getUSBKeyDefinition(keyText);
-            if (key.isValid())
-            {
-                this->_keyboardPressFunc((uint8_t)key.modifier, key.hidCode, 0, 0, 0, 0, 0);
-                this->_keyboardReleaseFunc();
-            }
-            else
-            {
-                LOG(Log::LOG_ERROR, "Got a invalid key\n");
-            }
-        }
-        else
-        {
-            LOG(Log::LOG_ERROR, "Got a invalid key\n");
-        }
-        return ret;
-    };
-
-    _commandMap["_SYSTEMKEY"] = [this](string line)
+    _statementHandlers["_SYSTEMKEY"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         // this is our internal function to handle all the system keys
-        bool ret = false;
         std::vector<uint8_t> keysToHold;
         uint8_t modifier = 0;
 
@@ -270,97 +223,97 @@ DuckyInterpreter::DuckyInterpreter(
             {
                 keysToHold.emplace_back(key.hidCode);
                 modifier = modifier | (uint8_t)key.modifier;
-                ret = true;
             }
             else if (key.isValid()) // just modifier
             {
                 modifier = modifier | (uint8_t)key.modifier;
-                ret = true;
             }
             else
             {
                 LOG(Log::LOG_ERROR, "Got a invalid key\n");
-                ret = false;
-                break;
+                return (DuckyReturn)SCRIPT_ERROR;
             }
         }
 
         LOG(Log::LOG_DEBUG, "\tGot %d keys\n", keysToHold.size());
 
-        if (ret)
-        {
-            uint8_t key1 = keysToHold.size() >= 1 ? keysToHold[0] : 0;
-            uint8_t key2 = keysToHold.size() >= 2 ? keysToHold[1] : 0;
-            uint8_t key3 = keysToHold.size() >= 3 ? keysToHold[2] : 0;
-            uint8_t key4 = keysToHold.size() >= 4 ? keysToHold[3] : 0;
-            uint8_t key5 = keysToHold.size() >= 5 ? keysToHold[4] : 0;
-            uint8_t key6 = keysToHold.size() >= 6 ? keysToHold[5] : 0;
+        const uint8_t key1 = keysToHold.size() >= 1 ? keysToHold[0] : 0;
+        const uint8_t key2 = keysToHold.size() >= 2 ? keysToHold[1] : 0;
+        const uint8_t key3 = keysToHold.size() >= 3 ? keysToHold[2] : 0;
+        const uint8_t key4 = keysToHold.size() >= 4 ? keysToHold[3] : 0;
+        const uint8_t key5 = keysToHold.size() >= 5 ? keysToHold[4] : 0;
+        const uint8_t key6 = keysToHold.size() >= 6 ? keysToHold[5] : 0;
 
-            LOG(Log::LOG_DEBUG, "\tCalling _keyboardPressFunc\n");
-            this->_keyboardPressFunc(modifier, key1, key2, key3, key4, key5, key6);
-            this->_keyboardReleaseFunc();
-        }
+        LOG(Log::LOG_DEBUG, "\tCalling _keyboardPressFunc\n");
+        this->_keyboardPressFunc(modifier, key1, key2, key3, key4, key5, key6);
+        this->_keyboardReleaseFunc();
 
-        return ret;
+        return _lineNumber++;
     };
 
-    _commandMap["DELAY"] = [this](string arg)
+    _statementHandlers["DELAY"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
+        std::string arg = line.substr(command.length() + 1);
+        ltrim(arg);
+
         const int delay = atoi(arg.c_str());
         _delayFunc(delay);
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["WAIT_FOR_BUTTON_PRESS"] = [this](string arg)
+    _statementHandlers["WAIT_FOR_BUTTON_PRESS"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         _waitForButtonPressFunc();
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["LED_OFF"] = [this](string arg)
+    _statementHandlers["LED_OFF"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         _changeLEDStateFunc(false, 0, 0, 0, 0);
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["LED_ON"] = [this](string arg)
+    _statementHandlers["LED_ON"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         _changeLEDStateFunc(true, 100, 100, 100, 255);
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["LED_R"] = [this](string arg)
+    _statementHandlers["LED_R"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         _changeLEDStateFunc(true, 0, 100, 100, 255);
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["LED_G"] = [this](string arg)
+    _statementHandlers["LED_G"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         _changeLEDStateFunc(true, 100, 100, 100, 255);
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["REM"] = [this](string arg)
+    _statementHandlers["REM"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         // do nothing
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["END_IF"] = [this](string arg)
+    _statementHandlers["END_IF"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         // do nothing
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["RESET"] = [this](string arg)
+    _statementHandlers["RESET"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         _reset();
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["RETURN"] = [this](string arg)
+    _statementHandlers["RETURN"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
+        std::string arg = line.substr(command.length() + 1);
+        ltrim(arg);
+
         const int value = evaluateIntegerExpression(arg);
         const std::string variableKey = _callstack.top().functionName + "_RET";
         _variables[variableKey] = value;
@@ -369,20 +322,23 @@ DuckyInterpreter::DuckyInterpreter(
         LOG(Log::LOG_DEBUG, "RETURN FOUND, jumping to %d\r\n", _lineNumber);
         _callstack.pop();
 
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["DEFINE"] = [this](string arg)
+    _statementHandlers["DEFINE"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
+        std::string arg = line.substr(command.length() + 1);
+        ltrim(arg);
+
         const auto ret = extractFirstWord(arg);
 
         // add this constant to our list
         _constants[ret.first] = ret.second;
 
-        return true;
+        return _lineNumber++;
     };
 
-    _commandMap["ATTACKMODE"] = [this](string arg)
+    _statementHandlers["ATTACKMODE"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         // ATTACKMODE HID VID_046D PID_C31C
         // ATTACKMODE HID VID_05AC PID_021E MAN_HAK5 PROD_DUCKY SERIAL_1337
@@ -391,6 +347,7 @@ DuckyInterpreter::DuckyInterpreter(
         // If no MAN, PROD and SERIAL parameters are specified, the USB Rubber Ducky will enumerate with the defaults "USB Input Device" (for both MAN and PROD) and a SERIAL of 111111111111.
         // If specified, the SERIAL_RANDOM parameter will use the pseudorandom number generator to select a unique 12 digit serial number. This is covered in greater detail in the section on randomization.
 
+        DuckyReturn ret = SCRIPT_ERROR;
         uint16_t vid = 0;
         uint16_t pid = 0;
         std::string manufacturer = "USB Input Device";
@@ -404,10 +361,13 @@ DuckyInterpreter::DuckyInterpreter(
         std::string PRODPrefix = "PROD_";
         std::string SERIALPrefix = "SERIAL_";
 
+        std::string arg = line.substr(command.length() + 1);
+        ltrim(arg);
+
         const auto keyWords = Ducky::SplitString(arg);
         if (keyWords.size() == 0)
         {
-            return false;
+            return ret;
         }
 
         for (const auto &keyword : keyWords)
@@ -426,13 +386,13 @@ DuckyInterpreter::DuckyInterpreter(
             }
             else if (keyword.substr(0, VIDPrefix.size()) == VIDPrefix)
             {
-                string hexString = keyword.substr(VIDPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
+                const std::string hexString = keyword.substr(VIDPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
                 char *endPtr = nullptr;
                 vid = strtol(hexString.c_str(), &endPtr, 16);
             }
             else if (keyword.substr(0, PIDPrefix.size()) == PIDPrefix)
             {
-                string hexString = keyword.substr(PIDPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
+                const std::string hexString = keyword.substr(PIDPrefix.size(), std::min(keyword.find(' '), keyword.length() - 1));
                 char *endPtr = nullptr;
                 pid = strtol(hexString.c_str(), &endPtr, 16);
             }
@@ -450,12 +410,182 @@ DuckyInterpreter::DuckyInterpreter(
             }
             else
             {
-                return false;
+                return ret;
             }
         }
 
         _changeModeFunc(mode, vid, pid, manufacturer, product, serial);
-        return true;
+        ret = _lineNumber++;
+        return ret;
+    };
+
+    _statementHandlers["IF"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        _lineNumber = handleIF(currentlyExecutingFile, _lineNumber, line, cmdExtensions);
+        return _lineNumber;
+    };
+
+    _statementHandlers["WHILE"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        _lineNumber = handleWHILE(currentlyExecutingFile, _lineNumber, line, cmdExtensions);
+        return _lineNumber;
+    };
+
+    _statementHandlers["END_WHILE"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        if (_whileLoopLineNumbers.size() == 0)
+        {
+            // we've exited the while loop
+            LOG(Log::LOG_DEBUG, "No return point, WHILE LOOP complete\r\n", _lineNumber);
+            return _lineNumber + 1;
+        }
+        else
+        {
+            _lineNumber = _whileLoopLineNumbers.top();
+            _whileLoopLineNumbers.pop();
+            LOG(Log::LOG_DEBUG, "Jumping to line '%d'\r\n", _lineNumber);
+            return _lineNumber;
+        }
+    };
+
+    _statementHandlers["ELSE"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        const auto endIfConditions = std::vector<std::string>{prefixEND_IF};
+        _lineNumber = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, std::vector<std::string>{prefixIF}, endIfConditions, endIfConditions) + 1;
+        return _lineNumber;
+    };
+
+    _statementHandlers["$"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        LOG(Log::LOG_DEBUG, "Variable assignment\r\n");
+        const auto variableName = command;
+        DuckyReturn ret = SCRIPT_ERROR;
+
+        do
+        {
+            if (_variables.find(variableName) == _variables.cend())
+            {
+                LOG(Log::LOG_ERROR, "Variable not declared %s\r\n", variableName.c_str());
+                break;
+            }
+
+            auto args = line.substr(variableName.size() + 1);
+            ltrim(args);
+
+            if (args[0] != '=')
+            {
+                LOG(Log::LOG_DEBUG, "Variable assignment error %s\r\n", args.c_str());
+                break;
+            }
+
+            args = args.substr(1);
+            ltrim(args);
+            ret = assignToVariable(variableName, args, cmdExtensions) == true ? _lineNumber + 1 : SCRIPT_ERROR;
+
+        } while (false);
+
+        _lineNumber = ret;
+        return ret;
+    };
+
+    _statementHandlers["FUNCTION"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        _lineNumber = handleFUNCTION(currentlyExecutingFile, _lineNumber, line, cmdExtensions);
+        return _lineNumber;
+    };
+
+    _statementHandlers["END_FUNCTION"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        const auto &callStackItem = _callstack.top();
+        LOG(Log::LOG_DEBUG, "END_FUNCTION FOUND, jumping to %d\r\n", callStackItem.returnLineNumber);
+        _lineNumber = callStackItem.returnLineNumber + 1;
+        _callstack.pop();
+        return _lineNumber;
+    };
+
+    const auto &stringFunc = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        DuckyReturn ret = SCRIPT_ERROR;
+        const bool isStringBlock = line.substr(0, prefixSTRING.size()) == prefixSTRING && line.size() == prefixSTRING.size() || line.substr(0, prefixSTRINGLN.size()) == prefixSTRINGLN && line.size() == prefixSTRINGLN.size();
+
+        if (isStringBlock)
+        {
+            const auto &function = _statementHandlers[line.size() == prefixSTRING.size() ? prefixSTRING : "STRINGLN "];
+            const auto &endMarker = line.size() == prefixSTRING.size() ? prefixEND_STRING : prefixEND_STRINGLN;
+
+            ret = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, 0, function) + 1;
+        }
+        else
+        {
+            std::string toPrint = line.substr(0, prefixSTRING.size()) == prefixSTRING ? line.substr(command.length() + 1) : command;
+            ltrim(toPrint);
+
+            LOG(Log::LOG_DEBUG, "STRING arg = %s\n", toPrint.c_str());
+            for (const char c : toPrint)
+            {
+                LOG(Log::LOG_DEBUG, "Trying to print '%c'\n", c);
+                const std::string mystring = std::string(1, c);
+
+                auto key = this->getUSBKeyDefinition(mystring);
+
+                if (key.isValid())
+                {
+                    LOG(Log::LOG_DEBUG, "Got a valid key\n");
+                    this->_keyboardPressFunc((uint8_t)key.modifier, key.hidCode, 0, 0, 0, 0, 0);
+                    this->_keyboardReleaseFunc();
+                }
+                else
+                {
+                    ret = SCRIPT_ERROR;
+                    LOG(Log::LOG_ERROR, "Got a invalid key\n");
+                    break;
+                }
+            }
+
+            ret = _lineNumber;
+        }
+
+        _lineNumber = ret != SCRIPT_ERROR ? ret + 1 : SCRIPT_ERROR;
+        return _lineNumber;
+    };
+
+    // handle STRING and STRINGLN with the same function
+    _statementHandlers[prefixSTRING] = stringFunc;
+    _statementHandlers[prefixSTRINGLN] = stringFunc;
+
+    // to make it easier to process string blocks we have another function "STRINGLN " that is called internally to add
+    // a ENTER press after each STRING call
+    _statementHandlers["STRINGLN "] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        // this function gets called for every line and +1 because
+        // of the main caller, need a way to stop the final call
+        const auto ret = _statementHandlers[prefixSTRING](line, command, cmdExtensions, udc);
+
+        if (ret != SCRIPT_ERROR)
+        {
+            const auto keyText = std::string("ENTER");
+            auto key = this->getUSBKeyDefinition(keyText);
+            if (key.isValid())
+            {
+                this->_keyboardPressFunc((uint8_t)key.modifier, key.hidCode, 0, 0, 0, 0, 0);
+                this->_keyboardReleaseFunc();
+            }
+            else
+            {
+                LOG(Log::LOG_ERROR, "Got a invalid key\n");
+            }
+        }
+        else
+        {
+            LOG(Log::LOG_ERROR, "Got a invalid key\n");
+        }
+        return ret;
+    };
+
+    _statementHandlers[RestartPayload] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        _lineNumber = 0;
+        return 0;
     };
 };
 
@@ -605,7 +735,7 @@ static std::string extractCondition(const std::string &line)
     return condition;
 }
 
-DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, const ExtensionCommands &extCommands)
 {
     LOG(Log::LOG_DEBUG, "\t\tStatement = '%s'\r\n", str.c_str());
     EvaluationResult ret = {0};
@@ -626,7 +756,7 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
     if (extCommands.find(str) != extCommands.cend())
     {
         LOG(Log::LOG_DEBUG, "\t\tFound extension command to run: %s\r\n", str.c_str());
-        ret.evaluationResult = extCommands[str](str, _constants, _variables);
+        ret.evaluationResult = extCommands.at(str)(str, _constants, _variables);
     }
     else if (_funcLookup.find(str) != _funcLookup.cend())
     {
@@ -676,7 +806,7 @@ int DuckyInterpreter::evaluateIntegerExpression(const std::string &str)
     }
 }
 
-DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(std::string &line, int lineNumber, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands, bool *conditionToCheck)
+DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::string &line, const int& lineNumber, const ExtensionCommands &extCommands, bool *conditionToCheck)
 {
     LOG(Log::LOG_DEBUG, "Handling statement\r\n");
     CallStackItem ret;
@@ -754,9 +884,10 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(std::string 
 
 // the job of this function is to evaluate the condition and if true to increment the line number
 // if false we read until END_IF
-int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands)
 {
     bool conditionToCheck = false;
+    DuckyReturn ret = SCRIPT_ERROR;
 
     const auto &callStackItem = evaluateStatement(line, lineNumber, extCommands, &conditionToCheck);
     if (callStackItem.error == true)
@@ -782,48 +913,48 @@ int DuckyInterpreter::handleIF(const std::string &filePath, int lineNumber, std:
         LOG(Log::LOG_DEBUG, "\tEvaluation was false, skipping to next statement\r\n");
 
         // need to skip instructions until we hit ELSE, ELSE IF or END_IF
-        lineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixELSE_IF, prefixELSE, prefixEND_IF});
+        int newLineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixELSE_IF, prefixELSE, prefixEND_IF});
 
-        if (lineNumber == SCRIPT_ERROR)
+        if (newLineNumber == SCRIPT_ERROR)
         {
             LOG(Log::LOG_ERROR, "Could not find end of IF statement");
             return SCRIPT_ERROR;
         }
 
-        LOG(Log::LOG_DEBUG, "\tSkipped until %d\r\n", lineNumber);
+        LOG(Log::LOG_DEBUG, "\tSkipped until %d\r\n", newLineNumber);
 
-        line = _readLineFunc(filePath, lineNumber);
+        std::string newline = _readLineFunc(filePath, newLineNumber);
 
-        ltrim(line);
-        rtrim(line);
+        ltrim(newline);
+        rtrim(newline);
 
-        if (line.empty())
+        if (newline.empty())
         {
             LOG(Log::LOG_DEBUG, "Error EOF while looking for END_IF\r\n");
             return SCRIPT_ERROR;
         }
 
-        if (line.substr(0, prefixEND_IF.size()) == prefixEND_IF)
+        if (newline.substr(0, prefixEND_IF.size()) == prefixEND_IF)
         {
-            return lineNumber + 1;
+            return newLineNumber + 1;
         }
-        else if (line.substr(0, prefixELSE_IF.size()) == prefixELSE_IF)
+        else if (newline.substr(0, prefixELSE_IF.size()) == prefixELSE_IF)
         {
-            LOG(Log::LOG_DEBUG, "\tFound ELSE IF to evaluate on line %d\r\n", lineNumber);
-            return handleIF(filePath, lineNumber, line, extCommands);
+            LOG(Log::LOG_DEBUG, "\tFound ELSE IF to evaluate on line %d\r\n", newLineNumber);
+            return handleIF(filePath, newLineNumber, newline, extCommands);
         }
-        else if (line.substr(0, prefixELSE.size()) == prefixELSE)
+        else if (newline.substr(0, prefixELSE.size()) == prefixELSE)
         {
             LOG(Log::LOG_DEBUG, "\tELSE found, moving to next line\r\n");
             // we can execute inside the IF statement
-            return lineNumber + 1;
+            return newLineNumber + 1;
         }
-    }
 
-    return lineNumber;
+        return newLineNumber;
+    }
 }
 
-int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+int DuckyInterpreter::handleWHILE(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands)
 {
     bool conditionToCheck = false;
 
@@ -850,7 +981,7 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, s
     else
     {
         // need to skip instructions until we hit END_WHILE
-        lineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE});
+        DuckyReturn newLineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE});
 
         if (lineNumber == SCRIPT_ERROR)
         {
@@ -858,11 +989,11 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, int lineNumber, s
             return SCRIPT_ERROR;
         }
 
-        return lineNumber + 1;
+        return newLineNumber + 1;
     }
 }
 
-int DuckyInterpreter::handleFUNCTION(const std::string &filePath, int lineNumber, std::string &line, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands)
 {
     const auto args = Ducky::SplitString(line);
 
@@ -881,12 +1012,23 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, int lineNumber
     }
 
     auto functionName = args[1];
-    _funcLookup[functionName] = _lineNumber + 1;
+    _statementHandlers[functionName] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
+    {
+        const auto functionLineNumber = _funcLookup[command];
+        LOG(Log::LOG_DEBUG, "FUNCTION FOUND, jumping to %d\r\n", functionLineNumber);
 
+        DuckyInterpreter::CallStackItem item{
+            .error = false,
+            .returnLineNumber = _lineNumber,
+            .functionName = command};
+        return pushCallStack(item);
+    };
+
+    _funcLookup[functionName] = _lineNumber + 1;
     return endOfFunction + 1;
 }
 
-int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount, std::function<bool(std::string)> func)
+int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount, const StatementHandler func)
 {
     LOG(Log::LOG_DEBUG, "\tSkipping lines until condition(s) is met\r\n");
 
@@ -962,7 +1104,11 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
 
         if (func != nullptr)
         {
-            if (!func(line))
+            // todo, don't like the creation of these
+            ExtensionCommands ext;
+            UserDefinedConstants udc;
+
+            if (func(line, line, ext, udc) == SCRIPT_ERROR)
             {
                 return SCRIPT_ERROR;
             }
@@ -972,7 +1118,7 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
     return lineNumber;
 }
 
-bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::string &arg, std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands)
+bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::string &arg, const ExtensionCommands &extCommands)
 {
     LOG(Log::LOG_DEBUG, "Assigning expression %s to variable %s\r\n", arg.c_str(), variableName.c_str());
     int currentValue = _variables[variableName];
@@ -1073,12 +1219,12 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
     return ret;
 }
 
-// -1 error
-//
 int DuckyInterpreter::Execute(const std::string &filePath,
-                              std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> &extCommands,
-                              std::vector<std::function<std::pair<std::string, std::string>()>> &userDefinedConstValues)
+                              const ExtensionCommands &extCommands,
+                              const UserDefinedConstants &userDefinedConstValues)
 {
+    DuckyReturn ret = SCRIPT_ERROR;
+
     // reset line if the filename has changed
     if (filePath != currentlyExecutingFile)
     {
@@ -1086,167 +1232,83 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         Restart();
     }
 
-    bool commandExitCode = true;
-    std::string line;
-    auto ret = getLineAndProcess(filePath, _lineNumber, line);
-
-    if (ret == SCRIPT_ERROR || ret == END_OF_FILE)
+    do
     {
-        return ret;
-    }
+        if (_lineNumber == SCRIPT_ERROR || _lineNumber == END_OF_FILE)
+        {
+            ret = _lineNumber;
+            break;
+        }
 
-    if (!line.empty())
-    {
+        std::string line;
+        ret = getLineAndProcess(filePath, _lineNumber, line);
+
+        if (ret == SCRIPT_ERROR || ret == END_OF_FILE)
+        {
+            break;
+        }
+
+        // ignore empty lines
+        if (line.empty())
+        {
+            _lineNumber++;
+            ret = _lineNumber;
+            break;
+        }
+
         // First we need to loop through any constants that have been defined and replace
         // their usage in the current line
         for (const auto &constant : _constants)
         {
             line = replaceAllOccurrences(line, constant.first, constant.second);
         }
+
         for (const auto &userDefinedFunction : userDefinedConstValues)
         {
             const auto &constant = userDefinedFunction();
             line = replaceAllOccurrences(line, constant.first, constant.second);
         }
 
-        string command = line.substr(0, std::min(line.find(' '), line.find('-')));
+        std::string command = line.substr(0, std::min(line.find(' '), line.find('-')));
         rtrim(command);
         LOG(Log::LOG_DEBUG, "COMMAND = '%s'\r\n", command.c_str());
 
-        if (line.substr(0, prefixSTRING.size()) == prefixSTRING && line.size() == prefixSTRING.size() ||
-            line.substr(0, prefixSTRINGLN.size()) == prefixSTRINGLN && line.size() == prefixSTRINGLN.size()) // if after trimming everything we've got an empty STRING then we have a STRING block
-        {
-            auto& function = _commandMap[line.size() == prefixSTRING.size() ? prefixSTRING : prefixSTRINGLN];
-            const auto& endMarker = line.size() == prefixSTRING.size() ? prefixEND_STRING : prefixEND_STRINGLN;
+        // if the line is a variable assignment convert command to $
+        const bool isVariableAssignment = line.size() >= 2 && line[0] == '$';
 
-            _lineNumber = skipLineUntilCondition(filePath, _lineNumber, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, 0, function);
-            commandExitCode = true;
-        }
-        else if (line.substr(0, prefixIF.size()) == prefixIF) // is this an IF statement, if so we handle lineNumber differently
-        {
-            // line starts with "IF "
-            _lineNumber = handleIF(filePath, _lineNumber, line, extCommands);
-            return _lineNumber;
-        }
-        else if (line.substr(0, PrefixWHILE.size()) == PrefixWHILE) // is this an IF statement, if so we handle lineNumber differently
-        {
-            // line starts with "WHILE "
-            _lineNumber = handleWHILE(filePath, _lineNumber, line, extCommands);
-            return _lineNumber;
-        }
-        else if (line.substr(0, EndWHILE.size()) == EndWHILE) // END_WHILE needs to pop stack and evaluate initial condition
-        {
-            // line starts with "END_WHILE"
-            if (_whileLoopLineNumbers.size() == 0)
-            {
-                // we've exited the while loop
-                LOG(Log::LOG_DEBUG, "No return point, WHILE LOOP complete\r\n", _lineNumber);
-                commandExitCode = true;
-            }
-            else
-            {
-                _lineNumber = _whileLoopLineNumbers.top();
-                _whileLoopLineNumbers.pop();
-                LOG(Log::LOG_DEBUG, "Jumping to line '%d'\r\n", _lineNumber);
-                return Execute(filePath, extCommands, userDefinedConstValues);
-            }
-        }
-        else if (line.substr(0, prefixELSE.size()) == prefixELSE) // current execution has ended in a ELSE, we need to skip until END_IF
-        {
-            auto endIfConditions = std::vector<std::string>{prefixEND_IF};
-            _lineNumber = skipLineUntilCondition(filePath, _lineNumber, std::vector<std::string>{prefixIF}, endIfConditions, endIfConditions);
-        }
-        else if (line.substr(0, prefixFUNCTION.size()) == prefixFUNCTION) // current execution has ended in a ELSE, we need to skip until END_IF
-        {
-            _lineNumber = handleFUNCTION(filePath, _lineNumber, line, extCommands);
-        }
-        else if (line.substr(0, RestartPayload.size()) == RestartPayload) // need to handle this cmd here as its changing the line number
-        {
-            _lineNumber = 0;
-            return 0;
-        }
-        else if (extCommands.find(command) != extCommands.cend()) // first check if we have a extension command set for this string
-        {
-            commandExitCode = extCommands[command](line, _constants, _variables) != 0;
-        }
-        else if (_commandMap.find(command) != _commandMap.cend())
-        {
-            LOG(Log::LOG_DEBUG, "COMMAND FOUND '%s'\r\n", command.c_str());
-            string arg = line.substr(line.find(' ') + 1);
+        const auto &commandToLookup = isVariableAssignment ? "$" : command;
 
-            rtrim(arg);
+        // First see if we have any registered handlers that know how to execute this command
+        if (_statementHandlers.find(commandToLookup) != _statementHandlers.cend())
+        {
+            ret = _statementHandlers[commandToLookup](line, command, extCommands, userDefinedConstValues);
+            break;
+        }
 
-            LOG(Log::LOG_DEBUG, "arg = '%s'\n", arg.c_str());
-            commandExitCode = _commandMap[command](arg);
-        }
-        else if (_funcLookup.find(command) != _funcLookup.cend())
+         // Next check if we have any extension commands
+        if (extCommands.find(command) != extCommands.cend())
         {
-            const auto functionLineNumber = _funcLookup[command];
-            LOG(Log::LOG_DEBUG, "FUNCTION FOUND, jumping to %d\r\n", functionLineNumber);
+            ret = extCommands.at(command)(line, _constants, _variables) == true ? _lineNumber++ : SCRIPT_ERROR;
+            break;
+        }
 
-            DuckyInterpreter::CallStackItem item{
-                .error = false,
-                .returnLineNumber = _lineNumber,
-                .functionName = command};
-            return pushCallStack(item);
-        }
-        else if (line.substr(0, prefixEND_FUNCTION.size()) == prefixEND_FUNCTION) // pop call stack for end_function
-        {
-            const auto &callStackItem = _callstack.top();
-            LOG(Log::LOG_DEBUG, "END_FUNCTION FOUND, jumping to %d\r\n", callStackItem.returnLineNumber);
-            _lineNumber = callStackItem.returnLineNumber;
-            _callstack.pop();
-        }
-        else if (line.size() >= 2 && line[0] == '$')
-        {
-            LOG(Log::LOG_DEBUG, "Variable assignment\r\n");
-            const auto variableName = command;
-            if (_variables.find(variableName) == _variables.cend())
-            {
-                LOG(Log::LOG_ERROR, "Variable not declared %s\r\n", variableName.c_str());
-                commandExitCode = false;
-            }
-            else
-            {
-                auto args = line.substr(variableName.size() + 1);
-                ltrim(args);
-                if (args[0] == '=')
-                {
-                    args = args.substr(1);
-                    ltrim(args);
-                    commandExitCode = assignToVariable(variableName, args, extCommands);
-                }
-                else
-                {
-                    LOG(Log::LOG_DEBUG, "Variable assignment error %s\r\n", args.c_str());
-                    commandExitCode = false;
-                }
-            }
-        }
-        else if (std::find(systemKeys.begin(), systemKeys.end(), command) != systemKeys.end())
+        // Finally determine where this command is actually a system key we need to press
+        if (std::find(systemKeys.cbegin(), systemKeys.cend(), command) != systemKeys.cend())
         {
             LOG(Log::LOG_DEBUG, "_SYSTEMKEY FOUND\n");
 
+            // we need to map keys line CTRL-SHIFT into something the _SYSTEMKEY can use
+            // this is as simple as changing - to ' '
             replaceAllOccurrences(line, '-', ' ');
-            commandExitCode = _commandMap["_SYSTEMKEY"](line);
-        }
-        else
-        {
-            commandExitCode = false;
+            ret = _statementHandlers["_SYSTEMKEY"](line, command, extCommands, userDefinedConstValues);
+            break;
         }
 
-        if (!commandExitCode)
-        {
-            LOG(Log::LOG_ERROR, "Failed processing = '%s'\n", line.c_str());
-            ret = SCRIPT_ERROR;
-        }
-    }
+        // If we've got here we couldn't find a way to process the text so quit
+        LOG(Log::LOG_ERROR, "Failed processing = '%s'\n", line.c_str());
+        ret = SCRIPT_ERROR;
 
-    if (commandExitCode)
-    {
-        ++_lineNumber;
-        ret = _lineNumber;
-    }
+    } while (false);
 
     return ret;
 }
