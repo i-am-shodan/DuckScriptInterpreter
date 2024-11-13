@@ -72,7 +72,8 @@ public:
 };
 
 typedef int DuckyReturn;
-typedef std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> ExtensionCommands;
+typedef std::function<int(const std::string&, const std::unordered_map<std::string, std::string>&, const std::unordered_map<std::string, int>&)> ExtensionCommand;
+typedef std::unordered_map<std::string, ExtensionCommand> ExtensionCommands;
 typedef std::vector<std::function<std::pair<std::string, std::string>()>> UserDefinedConstants;
 typedef std::function<DuckyReturn(const std::string&, const std::string&, const ExtensionCommands&, const UserDefinedConstants&)> StatementHandler;
 

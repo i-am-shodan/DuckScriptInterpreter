@@ -194,8 +194,8 @@ void runTest(int id, std::string filename, std::string output, std::string lang 
     count = 0;
     set = false;
 
-    std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> extCommands;
-    std::vector<std::function<std::pair<std::string, std::string>()>> consts;
+    ExtensionCommands extCommands;
+    UserDefinedConstants consts;
     extCommands["FUNC1()"] = func1;
     extCommands["FUNC2()"] = func2;
     extCommands["FUNC3()"] = func3;
