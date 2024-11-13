@@ -91,8 +91,8 @@ int main(void) {
         changeUSBMode,
         reset);
 
-    std::vector<std::function<std::pair<std::string, std::string>()>> consts;
-    std::unordered_map<std::string, std::function<int(std::string, std::unordered_map<std::string, std::string>, std::unordered_map<std::string, int>)>> extCommands;
+    UserDefinedConstants consts;
+    ExtensionCommands extCommands;
     extCommands["FIRE_MISSLES"] = fire_missles_custom_function;
     extCommands["FLASH_WARNING()"] = flash_warning_custom_function;
 
