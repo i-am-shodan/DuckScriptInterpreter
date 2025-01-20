@@ -193,6 +193,7 @@ DuckyInterpreter::DuckyInterpreter(
     {
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
+        replaceVariablesInLine(arg);
 
         this->_delayFunc(stoi(arg));
         return _lineNumber++;
@@ -255,6 +256,7 @@ DuckyInterpreter::DuckyInterpreter(
     {
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
+        replaceVariablesInLine(arg);
 
         const int delay = atoi(arg.c_str());
         _delayFunc(delay);
@@ -363,6 +365,8 @@ DuckyInterpreter::DuckyInterpreter(
 
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
+
+        replaceVariablesInLine(arg);
 
         const auto keyWords = Ducky::SplitString(arg);
         if (keyWords.size() == 0)
@@ -518,6 +522,7 @@ DuckyInterpreter::DuckyInterpreter(
         else
         {
             std::string toPrint = line.substr(0, prefixSTRING.size()) == prefixSTRING ? line.substr(command.length() + 1) : command;
+            replaceVariablesInLine(toPrint);
             ltrim(toPrint);
 
             LOG(Log::LOG_DEBUG, "STRING arg = %s\n", toPrint.c_str());
@@ -1219,6 +1224,14 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
     return ret;
 }
 
+void DuckyInterpreter::replaceVariablesInLine(std::string &line)
+{
+    for (const auto &pair : _variables)
+    {
+        line = replaceAllOccurrences(line, pair.first, std::to_string(pair.second));
+    }
+}
+
 int DuckyInterpreter::Execute(const std::string &filePath,
                               const ExtensionCommands &extCommands,
                               const UserDefinedConstants &userDefinedConstValues)
@@ -1285,7 +1298,10 @@ int DuckyInterpreter::Execute(const std::string &filePath,
             break;
         }
 
-         // Next check if we have any extension commands
+        // we can now replace any variables that still exist in the line as flow control has finished
+        replaceVariablesInLine(line);
+
+        // Next check if we have any extension commands
         if (extCommands.find(command) != extCommands.cend())
         {
             ret = extCommands.at(command)(line, _constants, _variables) == true ? _lineNumber++ : SCRIPT_ERROR;

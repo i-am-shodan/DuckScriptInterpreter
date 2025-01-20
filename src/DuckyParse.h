@@ -161,6 +161,7 @@ private:
     int evaluateIntegerExpression(const std::string &line);
     int pushCallStack(const CallStackItem &item);
     int getLineAndProcess(const std::string &filePath, const int &lineNum, std::string &line);
+    void replaceVariablesInLine(std::string &line);
 
 public:
     DuckyInterpreter(

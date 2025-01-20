@@ -251,7 +251,7 @@ int main(void) {
     runTest(11, "examples/while_loops.txt", "D1FUNC1FUNC2FUNC1FUNC1FUNC2FUNC1FUNC2FUNC1FUNC2FUNC1FUNC2D2D3");
     runTest(12, "examples/constants_are_replaced_with_runtime_defined_values.txt", "P4R4");
     runTest(13, "examples/if_else.txt", "P4R4P4R4P4R4P4R4P4R4");
-    runTest(14, "examples/variables.txt", "P4R4P4R4P4R4");
+    runTest(14, "examples/variables.txt", "P4R4P4R4P4R4P31R31");
     runTest(15, "examples/func_while.txt", "P4R4");
     runTest(16, "examples/nested_statements.txt", "P4R4P4R4P4R4P4R4P4R4");
     runTest(17, "examples/if_elseif_elseif.txt", "P4R4P5R5P6R6P4R4P5R5");
