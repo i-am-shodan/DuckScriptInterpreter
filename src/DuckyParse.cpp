@@ -547,6 +547,16 @@ DuckyInterpreter::DuckyInterpreter(
                 }
             }
 
+            if (command == "STRINGLN")
+            {
+                const auto keyText = std::string("ENTER");
+                auto key = this->getUSBKeyDefinition(keyText);
+                if (key.isValid())
+                {
+                    this->_keyboardPressFunc((uint8_t)key.modifier, key.hidCode, 0, 0, 0, 0, 0);
+                    this->_keyboardReleaseFunc();
+                }
+            }
             ret = _lineNumber;
         }
 
