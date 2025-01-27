@@ -25,6 +25,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include "USBKeyDefinitions.h"
 
 #include <algorithm>
+#include <cctype>
 
 using namespace std;
 using namespace Ducky;
@@ -180,7 +181,15 @@ DuckyInterpreter::DuckyInterpreter(
         }
         else
         {
-            intValue = stoi(varValue);
+            if (std::all_of(varValue.begin(), varValue.end(), ::isdigit))
+            {
+                intValue = stoi(varValue);
+            }
+            else
+            {
+                LOG(Log::LOG_ERROR, "Invalid variable declaration %s\n", varValue.c_str());
+                return (DuckyReturn) SCRIPT_ERROR;
+            }
         }
 
         _variables[varName] = intValue;
