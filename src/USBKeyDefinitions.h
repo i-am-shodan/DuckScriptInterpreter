@@ -177,7 +177,26 @@ static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
     {DOWN, USBKeyDefinition(0x50)},
     {UP, USBKeyDefinition(0x51)},
     {GUI, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftGui)},
-    {END, USBKeyDefinition(0x4d)}};
+    {END, USBKeyDefinition(0x4d)}
+    {UPARROW, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x60)},
+    {DOWNARROW, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x5A)},
+    {LEFTARROW, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x52)},
+    {RIGHTARROW, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x5E)},
+    {PAGEUP, USBKeyDefinition(0x5C)},
+    {PAGEDOWN, USBKeyDefinition(0x4E)},
+    {HOME, USBKeyDefinition(0x4A)},
+    {INSERT, USBKeyDefinition(0x49)},
+    {DELETE, USBKeyDefinition(0x4C)},
+    {ESCAPE, USBKeyDefinition(0x29)},
+    {PAUSE, USBKeyDefinition(0x48)},
+    {BREAK, USBKeyDefinition(0x48)},
+    {PRINTSCREEN, USBKeyDefinition(0x46)},
+    {MENU_APP, USBKeyDefinition(0x65)},
+    {COMMAND, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftGui, 0x00)},
+    {WINDOWS, USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftGui, 0x00)},
+    {CAPSLOCK, USBKeyDefinition(0x39)},
+    {NUMLOCK, USBKeyDefinition(0x53)},
+    {SCROLLOCK, USBKeyDefinition(0x47)}};
 
 static std::vector<const char *> systemKeys =
     {
