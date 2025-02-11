@@ -259,6 +259,7 @@ int main(void) {
     runTest(19, "examples/function.txt", "P4R4P5R5P6R6P4R4P5R5P7R7P5R5");
     runTest(20, "examples/stringblock.txt", "P4R4P5R5P6R6P4R4P40R40P5R5P40R40P6R6P40R40");
     runTest(20, "examples/invalid_syntax_shouldnt_crash1.txt", "ERROR");
+    runTest(21, "examples/basic.txt", "D5000P20R20", "win_fr");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }
