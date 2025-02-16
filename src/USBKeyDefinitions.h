@@ -128,7 +128,7 @@ static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
     {"_", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2d)},
     {"+", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2e)},
 
-    {"[", USBKeyDefinition(0x27)},
+    {"[", USBKeyDefinition(0x2f)},
     {"{", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2f)},
     {"]", USBKeyDefinition(0x30)},
     {"}", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x30)},
