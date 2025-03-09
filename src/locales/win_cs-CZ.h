@@ -36,6 +36,16 @@
          {":", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x37)},
          {"]", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0xa)},
          {"\\", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x14)},
+         {"1", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1e)},
+         {"2", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1f)},
+         {"3", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x20)},
+         {"4", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x21)},
+         {"5", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x22)},
+         {"6", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x23)},
+         {"7", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x24)},
+         {"8", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x25)},
+         {"9", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x26)},
+         {"0", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x27)},
      }},
 
 #endif
