@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef LOCALE_win_cs_cz
+#ifdef LOCALE_win_cs_CZ
 
     {"win_cs-CZ",
      {
