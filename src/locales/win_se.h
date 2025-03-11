@@ -31,6 +31,12 @@
          {"}", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x27)},
          {"\\", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x2d)},
          {"|", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::RightAlt, 0x64)},
+         {"å", USBKeyDefinition(0x2f)},
+         {"Å", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x2f)},
+         {"ö", USBKeyDefinition(0x33)},
+         {"Ö", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x33)},
+         {"ä", USBKeyDefinition(0x34)},
+         {"Ä", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x34)},
      }},
 
 #endif
