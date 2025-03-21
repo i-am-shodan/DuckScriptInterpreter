@@ -163,7 +163,7 @@ DuckyInterpreter::DuckyInterpreter(
         if (args.size() != 3 || args[1] != "=")
         {
             LOG(Log::LOG_ERROR, "Invalid variable declaration %d\n", args.size());
-            return (DuckyReturn) SCRIPT_ERROR;
+            return (DuckyReturn)SCRIPT_ERROR;
         }
 
         const auto &varName = args[0];
@@ -188,7 +188,7 @@ DuckyInterpreter::DuckyInterpreter(
             else
             {
                 LOG(Log::LOG_ERROR, "Invalid variable declaration %s\n", varValue.c_str());
-                return (DuckyReturn) SCRIPT_ERROR;
+                return (DuckyReturn)SCRIPT_ERROR;
             }
         }
 
@@ -519,7 +519,8 @@ DuckyInterpreter::DuckyInterpreter(
     const auto &stringFunc = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
         DuckyReturn ret = SCRIPT_ERROR;
-        const bool isStringBlock = line.substr(0, prefixSTRING.size()) == prefixSTRING && line.size() == prefixSTRING.size() || line.substr(0, prefixSTRINGLN.size()) == prefixSTRINGLN && line.size() == prefixSTRINGLN.size();
+        const bool isStringBlock = line.substr(0, prefixSTRING.size()) == prefixSTRING && line.size() == prefixSTRING.size() ||
+                                   line.substr(0, prefixSTRINGLN.size()) == prefixSTRINGLN && line.size() == prefixSTRINGLN.size();
 
         if (isStringBlock)
         {
@@ -535,25 +536,52 @@ DuckyInterpreter::DuckyInterpreter(
             ltrim(toPrint);
 
             LOG(Log::LOG_DEBUG, "STRING arg = %s\n", toPrint.c_str());
-            for (const char c : toPrint)
-            {
-                LOG(Log::LOG_DEBUG, "Trying to print '%c'\n", c);
-                const std::string mystring = std::string(1, c);
 
-                auto key = this->getUSBKeyDefinition(mystring);
+            // Process UTF-8 string character by character
+            for (size_t i = 0; i < toPrint.length();)
+            {
+                unsigned char c = toPrint[i];
+                size_t charLen = 1;
+
+                // Determine UTF-8 character length
+                if ((c & 0x80) == 0)
+                {
+                    charLen = 1;
+                }
+                else if ((c & 0xE0) == 0xC0)
+                {
+                    charLen = 2;
+                }
+                else if ((c & 0xF0) == 0xE0)
+                {
+                    charLen = 3;
+                }
+                else if ((c & 0xF8) == 0xF0)
+                {
+                    charLen = 4;
+                }
+
+                // Extract the full UTF-8 character
+                std::string utf8Char = toPrint.substr(i, charLen);
+                LOG(Log::LOG_DEBUG, "Processing UTF-8 char of length %d\n", charLen);
+
+                auto key = this->getUSBKeyDefinition(utf8Char);
 
                 if (key.isValid())
                 {
-                    LOG(Log::LOG_DEBUG, "Got a valid key\n");
+                    LOG(Log::LOG_DEBUG, "Got a valid key for UTF-8 char\n");
                     this->_keyboardPressFunc((uint8_t)key.modifier, key.hidCode, 0, 0, 0, 0, 0);
                     this->_keyboardReleaseFunc();
                 }
                 else
                 {
                     ret = SCRIPT_ERROR;
-                    LOG(Log::LOG_ERROR, "Got a invalid key\n");
+                    LOG(Log::LOG_ERROR, "Invalid key for UTF-8 char\n");
                     break;
                 }
+
+                // Move to next character
+                i += charLen;
             }
 
             if (command == "STRINGLN")
@@ -830,7 +858,7 @@ int DuckyInterpreter::evaluateIntegerExpression(const std::string &str)
     }
 }
 
-DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::string &line, const int& lineNumber, const ExtensionCommands &extCommands, bool *conditionToCheck)
+DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::string &line, const int &lineNumber, const ExtensionCommands &extCommands, bool *conditionToCheck)
 {
     LOG(Log::LOG_DEBUG, "Handling statement\r\n");
     CallStackItem ret;
