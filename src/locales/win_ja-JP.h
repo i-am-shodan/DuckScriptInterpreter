@@ -1,5 +1,6 @@
 #pragma once
 
+// language: Japanese (Japan)
 #ifdef LOCALE_win_ja_JP
 
     {"win_ja-JP",

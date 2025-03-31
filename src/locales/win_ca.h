@@ -1,5 +1,6 @@
 #pragma once
 
+//Language: Catalan (Catalonia)
 #ifdef LOCALE_win_ca
 
     {"win_ca",

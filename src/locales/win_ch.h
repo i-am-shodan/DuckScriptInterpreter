@@ -1,5 +1,6 @@
 #pragma once
 
+// Language: Chinese (Simplified, China)
 #ifdef LOCALE_win_ch
 
     {"win_ch",
