@@ -45,7 +45,7 @@ static constexpr const char *WINDOWS = "WINDOWS";
 static constexpr const char *GUI = "GUI";
 static constexpr const char *CAPSLOCK = "CAPSLOCK";
 static constexpr const char *NUMLOCK = "NUMLOCK";
-static constexpr const char *SCROLLOCK = "SCROLLOCK";
+static constexpr const char *SCROLLOCK = "SCROLLLOCK";
 static constexpr const uint8_t SHIFT_KEY = 0xe1;
 
 static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {

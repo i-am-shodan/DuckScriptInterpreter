@@ -260,6 +260,7 @@ int main(void) {
     runTest(20, "examples/stringblock.txt", "P4R4P5R5P6R6P4R4P40R40P5R5P40R40P6R6P40R40");
     runTest(20, "examples/invalid_syntax_shouldnt_crash1.txt", "ERROR");
     runTest(21, "examples/basic.txt", "D5000P20R20", "win_fr");
+    runTest(22, "examples/otherkeys.txt", "P57R57P83R83");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }
