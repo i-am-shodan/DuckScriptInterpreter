@@ -1,0 +1,7 @@
+VAR $A = 1
+VAR $B = 1337
+
+$B = 0
+$B = $A
+
+STRING $B

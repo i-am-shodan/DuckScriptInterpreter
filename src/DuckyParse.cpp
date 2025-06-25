@@ -1187,6 +1187,10 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
     {
         currentValue = 0;
     }
+    else if (_variables.find(arg) != _variables.cend())
+    {
+        currentValue = _variables[arg];
+    }
     else
     {
         for (auto &condition : parseCondition(arg))
