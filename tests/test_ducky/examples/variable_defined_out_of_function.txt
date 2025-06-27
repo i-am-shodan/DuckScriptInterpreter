@@ -1,0 +1,15 @@
+VAR $A = FALSE
+
+FUNCTION CHECK()
+    IF ($A == FALSE)
+        STRING a
+        $A = TRUE
+    ELSE
+        STRING b
+        $A = FALSE
+    END_IF
+END_FUNCTION
+
+CHECK()
+CHECK()
+CHECK()
