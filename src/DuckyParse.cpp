@@ -150,6 +150,7 @@ DuckyInterpreter::DuckyInterpreter(
       _keyboardLayout(),
       _funcLookup(),
       _callstack(),
+      _linesToIgnore(),
       _lineNumber(0)
 {
 
@@ -434,13 +435,13 @@ DuckyInterpreter::DuckyInterpreter(
 
     _statementHandlers["IF"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
-        _lineNumber = handleIF(currentlyExecutingFile, _lineNumber, line, cmdExtensions);
+        _lineNumber = handleIF(currentlyExecutingFile, _lineNumber, line, cmdExtensions, udc);
         return _lineNumber;
     };
 
     _statementHandlers["WHILE"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
-        _lineNumber = handleWHILE(currentlyExecutingFile, _lineNumber, line, cmdExtensions);
+        _lineNumber = handleWHILE(currentlyExecutingFile, _lineNumber, line, cmdExtensions, udc);
         return _lineNumber;
     };
 
@@ -459,13 +460,6 @@ DuckyInterpreter::DuckyInterpreter(
             LOG(Log::LOG_DEBUG, "Jumping to line '%d'\r\n", _lineNumber);
             return _lineNumber;
         }
-    };
-
-    _statementHandlers["ELSE"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
-    {
-        const auto endIfConditions = std::vector<std::string>{prefixEND_IF};
-        _lineNumber = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, std::vector<std::string>{prefixIF}, endIfConditions, endIfConditions) + 1;
-        return _lineNumber;
     };
 
     _statementHandlers["$"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
@@ -503,7 +497,7 @@ DuckyInterpreter::DuckyInterpreter(
 
     _statementHandlers["FUNCTION"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
-        _lineNumber = handleFUNCTION(currentlyExecutingFile, _lineNumber, line, cmdExtensions);
+        _lineNumber = handleFUNCTION(currentlyExecutingFile, _lineNumber, line, cmdExtensions, udc);
         return _lineNumber;
     };
 
@@ -527,7 +521,7 @@ DuckyInterpreter::DuckyInterpreter(
             const auto &function = _statementHandlers[line.size() == prefixSTRING.size() ? prefixSTRING : "STRINGLN "];
             const auto &endMarker = line.size() == prefixSTRING.size() ? prefixEND_STRING : prefixEND_STRINGLN;
 
-            ret = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, 0, function) + 1;
+            ret = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, udc, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, 0, function) + 1;
         }
         else
         {
@@ -804,6 +798,8 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
         }
     }
 
+    LOG(Log::LOG_DEBUG, "\t\tStatement is now = '%s'\r\n", str.c_str());
+
     // first try to evaluate any functions in the LHS or RHS
     if (extCommands.find(str) != extCommands.cend())
     {
@@ -860,7 +856,7 @@ int DuckyInterpreter::evaluateIntegerExpression(const std::string &str)
 
 DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::string &line, const int &lineNumber, const ExtensionCommands &extCommands, bool *conditionToCheck)
 {
-    LOG(Log::LOG_DEBUG, "Handling statement\r\n");
+    LOG(Log::LOG_DEBUG, "Handling statement for %s\r\n", line.c_str());
     CallStackItem ret;
     ret.returnLineNumber = -1;
     ret.error = true;
@@ -935,8 +931,8 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::s
 }
 
 // the job of this function is to evaluate the condition and if true to increment the line number
-// if false we read until END_IF
-DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands)
+// if false we read until and execute ELSE IF, ELSE until END_IF
+DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues)
 {
     bool conditionToCheck = false;
     DuckyReturn ret = SCRIPT_ERROR;
@@ -957,6 +953,22 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
     if (conditionToCheck)
     {
         LOG(Log::LOG_DEBUG, "\tIF..ELSE evaluated to success, moving to next line %d\r\n", lineNumber);
+
+        // We need to work out what lines, if any, make up the rest of this IF statement and ignore attempts to execute them
+        // as we have successfully executed this part. We do this by looking for:
+        // * The start of any non nested ELSE, ELSE IF statement
+        // * the END_IF statement
+        // If we see and ELSE or ELSE IF we add any line up to the end of the IF statement to linesToIgnore
+        // When we've finished processing this code block we will fall into these lines and the process will skip over them.
+        int endOfIFStatement = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixEND_IF});
+        int startOfAdditionalClauses = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixEND_IF, prefixELSE_IF, prefixELSE});
+
+        // we only need to add to linesToIgnore if this is an if..else or if...else if
+        if (endOfIFStatement != startOfAdditionalClauses)
+        {
+            _linesToIgnore.emplace(startOfAdditionalClauses, endOfIFStatement);
+        }
+
         // we can execute inside the IF statement
         return lineNumber + 1;
     }
@@ -965,7 +977,7 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
         LOG(Log::LOG_DEBUG, "\tEvaluation was false, skipping to next statement\r\n");
 
         // need to skip instructions until we hit ELSE, ELSE IF or END_IF
-        int newLineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixELSE_IF, prefixELSE, prefixEND_IF});
+        int newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixELSE_IF, prefixELSE, prefixEND_IF});
 
         if (newLineNumber == SCRIPT_ERROR)
         {
@@ -975,12 +987,10 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
 
         LOG(Log::LOG_DEBUG, "\tSkipped until %d\r\n", newLineNumber);
 
-        std::string newline = _readLineFunc(filePath, newLineNumber);
+        std::string newline;
+        ret = getLineAndProcess(filePath, newLineNumber, userDefinedConstValues, newline);
 
-        ltrim(newline);
-        rtrim(newline);
-
-        if (newline.empty())
+        if (ret == SCRIPT_ERROR || ret == END_OF_FILE)
         {
             LOG(Log::LOG_DEBUG, "Error EOF while looking for END_IF\r\n");
             return SCRIPT_ERROR;
@@ -993,7 +1003,7 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
         else if (newline.substr(0, prefixELSE_IF.size()) == prefixELSE_IF)
         {
             LOG(Log::LOG_DEBUG, "\tFound ELSE IF to evaluate on line %d\r\n", newLineNumber);
-            return handleIF(filePath, newLineNumber, newline, extCommands);
+            return handleIF(filePath, newLineNumber, newline, extCommands, userDefinedConstValues);
         }
         else if (newline.substr(0, prefixELSE.size()) == prefixELSE)
         {
@@ -1006,7 +1016,7 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
     }
 }
 
-int DuckyInterpreter::handleWHILE(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands)
+int DuckyInterpreter::handleWHILE(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues)
 {
     bool conditionToCheck = false;
 
@@ -1033,7 +1043,7 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, const int &lineNu
     else
     {
         // need to skip instructions until we hit END_WHILE
-        DuckyReturn newLineNumber = skipLineUntilCondition(filePath, lineNumber, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE});
+        DuckyReturn newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE});
 
         if (lineNumber == SCRIPT_ERROR)
         {
@@ -1045,7 +1055,7 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, const int &lineNu
     }
 }
 
-int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands)
+int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues)
 {
     const auto args = Ducky::SplitString(line);
 
@@ -1055,7 +1065,7 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lin
         return false;
     }
 
-    const int endOfFunction = skipLineUntilCondition(filePath, lineNumber + 1, std::vector<std::string>(), std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixEND_FUNCTION});
+    const int endOfFunction = skipLineUntilCondition(filePath, lineNumber + 1, userDefinedConstValues, std::vector<std::string>(), std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixEND_FUNCTION});
 
     if (_lineNumber == SCRIPT_ERROR)
     {
@@ -1080,9 +1090,22 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lin
     return endOfFunction + 1;
 }
 
-int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount, const StatementHandler func)
+int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const UserDefinedConstants &userDefinedConstValues, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount, const StatementHandler func)
 {
     LOG(Log::LOG_DEBUG, "\tSkipping lines until condition(s) is met\r\n");
+
+    for (const auto &nestCondition : nestingConditions)
+    {
+        LOG(Log::LOG_DEBUG, "\tPossible nestCondition are %s\r\n", nestCondition.c_str());
+    }
+    for (const auto &endCondition : endConditions)
+    {
+        LOG(Log::LOG_DEBUG, "\tPossible endCondition are %s\r\n", endCondition.c_str());
+    }
+    for (const auto &matchingCondition : matchingConditions)
+    {
+        LOG(Log::LOG_DEBUG, "\tPossible matchingConditions are %s\r\n", matchingCondition.c_str());
+    }
 
     // need to skip instructions until we hit endCondition whilst making sure that we aren't
     // using any statements that would cause nesting with our comparisions!
@@ -1093,12 +1116,14 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
         // increment line and read
         lineNumber++;
 
-        const auto readStatus = getLineAndProcess(filePath, lineNumber, line);
+        const auto readStatus = getLineAndProcess(filePath, lineNumber, userDefinedConstValues, line);
         if (readStatus == SCRIPT_ERROR || readStatus == END_OF_FILE)
         {
             LOG(Log::LOG_DEBUG, "\tError EOF while looking for end condition\r\n");
             break;
         }
+
+        LOG(Log::LOG_DEBUG, "\tProcessing line %s\r\n", line.c_str());
 
         bool incrementLineNumber = false;
 
@@ -1118,6 +1143,7 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
             continue;
         }
 
+        LOG(Log::LOG_DEBUG, "\tnestingCount count %d\r\n", nestingCount);
         if (nestingCount > 0)
         {
             for (const auto &endCondition : endConditions)
@@ -1141,6 +1167,7 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
         {
             for (const auto &matchCondition : matchingConditions)
             {
+                LOG(Log::LOG_DEBUG, "\tChecking if %s starts with %s\r\n", line.c_str(), matchCondition.c_str());
                 if (line.substr(0, matchCondition.size()) == matchCondition)
                 {
                     LOG(Log::LOG_DEBUG, "\tFound matching statement (%s) line %d\r\n", matchCondition.c_str(), lineNumber);
@@ -1248,7 +1275,7 @@ int DuckyInterpreter::pushCallStack(const CallStackItem &item)
     return functionLineNumber;
 }
 
-int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &lineNum, std::string &line)
+int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &lineNum, const UserDefinedConstants &userDefinedConstValues, std::string &line)
 {
     int ret = SCRIPT_ERROR;
 
@@ -1269,6 +1296,20 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
 
     ltrim(line);
     rtrim(line);
+
+    // First we need to loop through any constants that have been defined and replace
+    // their usage in the current line
+    for (const auto &constant : _constants)
+    {
+        // LOG(Log::LOG_DEBUG, "Trying to replace '%s' with %s in line %s\r\n", constant.first.c_str(), constant.second.c_str(), line.c_str());
+        line = replaceAllOccurrences(line, constant.first, constant.second);
+    }
+
+    for (const auto &userDefinedFunction : userDefinedConstValues)
+    {
+        const auto &constant = userDefinedFunction();
+        line = replaceAllOccurrences(line, constant.first, constant.second);
+    }
 
     ret = lineNum;
 
@@ -1305,7 +1346,7 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         }
 
         std::string line;
-        ret = getLineAndProcess(filePath, _lineNumber, line);
+        ret = getLineAndProcess(filePath, _lineNumber, userDefinedConstValues, line);
 
         if (ret == SCRIPT_ERROR || ret == END_OF_FILE)
         {
@@ -1320,18 +1361,18 @@ int DuckyInterpreter::Execute(const std::string &filePath,
             break;
         }
 
-        // First we need to loop through any constants that have been defined and replace
-        // their usage in the current line
-        for (const auto &constant : _constants)
+        // ensure we don't execute any else or else if conditions, these have been added to the linesToIgnore stack
+        // it is our job to look for these and ensure they are not executed then removed.
+        if (!_linesToIgnore.empty() && _lineNumber >= _linesToIgnore.top().first && _lineNumber <= _linesToIgnore.top().second)
         {
-            line = replaceAllOccurrences(line, constant.first, constant.second);
+            LOG(Log::LOG_DEBUG, "Line is in linesToIgnore list, skipping to %d\r\n", _linesToIgnore.top().second);
+            _lineNumber = _linesToIgnore.top().second +1;
+            ret = _lineNumber;
+            _linesToIgnore.pop();
+            break;
         }
 
-        for (const auto &userDefinedFunction : userDefinedConstValues)
-        {
-            const auto &constant = userDefinedFunction();
-            line = replaceAllOccurrences(line, constant.first, constant.second);
-        }
+        LOG(Log::LOG_DEBUG, "line after replacements = '%s'\r\n", line.c_str());
 
         std::string command = line.substr(0, std::min(line.find(' '), line.find('-')));
         rtrim(command);

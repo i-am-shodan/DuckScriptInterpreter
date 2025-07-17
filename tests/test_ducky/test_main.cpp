@@ -206,6 +206,9 @@ void runTest(int id, std::string filename, std::string output, std::string lang 
     consts.emplace_back([] {
         return std::pair("#DYNAMICVAR1", "a");
     });
+    consts.emplace_back([] {
+        return std::pair("$_OS", std::to_string((uint8_t)4));
+    });
 
     DuckyInterpreter ducky = DuckyInterpreter(
         delay, 
@@ -263,6 +266,7 @@ int main(void) {
     runTest(23, "examples/otherkeys.txt", "P57R57P83R83P71R71");
     runTest(24, "examples/variable_assigntoanother.txt", "P30R30");
     runTest(25, "examples/variable_defined_out_of_function.txt", "P4R4P5R5P4R4");
+    runTest(26, "examples/long_if.txt", "P5R5");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }
