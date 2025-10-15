@@ -35,6 +35,7 @@ public:
         RightControl = 0x10,
         RightShift = 0x20,
         RightAlt = 0x40,
+        ShiftAltGr = 0x42,
         RightGui = 0x80,
         INVALID = 0xFF
     };
