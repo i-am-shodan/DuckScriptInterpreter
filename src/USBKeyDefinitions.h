@@ -116,7 +116,7 @@ static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
     {"=", USBKeyDefinition(0x2e)},
 
     {"!", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1e)},
-    {"\"", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1f)},
+    {"\"", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x34)},
     {"£", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x20)},
     {"$", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x21)},
     {"%", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x22)},
@@ -138,7 +138,7 @@ static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
     {";", USBKeyDefinition(0x33)},
     {":", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x33)},
     {"'", USBKeyDefinition(0x34)},
-    {"@", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x34)}, // UK
+    {"@", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x1f)},
 
     {"#", USBKeyDefinition(0x33)},                                               // TODO
     {"~", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x33)}, // TODO
