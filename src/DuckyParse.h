@@ -197,6 +197,11 @@ public:
             _linesToIgnore.pop();
         }
     }
+
+    void AddOrUpdateVariable(const std::string &name, const int value)
+    {
+        _variables[name] = value;
+    }
 };
 
 inline DuckyInterpreter::USB_MODE operator|(DuckyInterpreter::USB_MODE a, DuckyInterpreter::USB_MODE b)
