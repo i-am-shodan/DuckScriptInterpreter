@@ -521,7 +521,12 @@ DuckyInterpreter::DuckyInterpreter(
             const auto &function = _statementHandlers[line.size() == prefixSTRING.size() ? prefixSTRING : "STRINGLN "];
             const auto &endMarker = line.size() == prefixSTRING.size() ? prefixEND_STRING : prefixEND_STRINGLN;
 
-            ret = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, udc, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, 0, function) + 1;
+            ret = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, udc, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, std::vector<std::string>{prefixSTRING, prefixSTRINGLN}, 0, function);
+
+            if (ret != SCRIPT_ERROR && ret != END_OF_FILE)
+            {
+                ret++;
+            }
         }
         else
         {
@@ -960,8 +965,8 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
         // * the END_IF statement
         // If we see and ELSE or ELSE IF we add any line up to the end of the IF statement to linesToIgnore
         // When we've finished processing this code block we will fall into these lines and the process will skip over them.
-        int endOfIFStatement = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixEND_IF});
-        int startOfAdditionalClauses = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixEND_IF, prefixELSE_IF, prefixELSE});
+        int endOfIFStatement = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>());
+        int startOfAdditionalClauses = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixEND_IF, prefixELSE_IF, prefixELSE}, std::vector<std::string>());
 
         // we only need to add to linesToIgnore if this is an if..else or if...else if
         if (endOfIFStatement != startOfAdditionalClauses)
@@ -977,7 +982,7 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
         LOG(Log::LOG_DEBUG, "\tEvaluation was false, skipping to next statement\r\n");
 
         // need to skip instructions until we hit ELSE, ELSE IF or END_IF
-        int newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixELSE_IF, prefixELSE, prefixEND_IF});
+        int newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixELSE_IF, prefixELSE, prefixEND_IF}, std::vector<std::string>());
 
         if (newLineNumber == SCRIPT_ERROR)
         {
@@ -1043,7 +1048,7 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, const int &lineNu
     else
     {
         // need to skip instructions until we hit END_WHILE
-        DuckyReturn newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE});
+        DuckyReturn newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>());
 
         if (lineNumber == SCRIPT_ERROR)
         {
@@ -1065,7 +1070,7 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lin
         return false;
     }
 
-    const int endOfFunction = skipLineUntilCondition(filePath, lineNumber + 1, userDefinedConstValues, std::vector<std::string>(), std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixEND_FUNCTION});
+    const int endOfFunction = skipLineUntilCondition(filePath, lineNumber + 1, userDefinedConstValues, std::vector<std::string>(), std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixFUNCTION});
 
     if (_lineNumber == SCRIPT_ERROR)
     {
@@ -1090,7 +1095,7 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lin
     return endOfFunction + 1;
 }
 
-int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const UserDefinedConstants &userDefinedConstValues, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount, const StatementHandler func)
+int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const UserDefinedConstants &userDefinedConstValues, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, const std::vector<std::string> &errorConditions, int nestingCount, const StatementHandler func)
 {
     LOG(Log::LOG_DEBUG, "\tSkipping lines until condition(s) is met\r\n");
 
@@ -1123,9 +1128,17 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
             break;
         }
 
-        LOG(Log::LOG_DEBUG, "\tProcessing line %s\r\n", line.c_str());
+        LOG(Log::LOG_DEBUG, "\tGot line %s\r\n", line.c_str());
 
         bool incrementLineNumber = false;
+
+        for (const auto &errorCondition : errorConditions)
+        {
+            if (line.substr(0, errorCondition.size()) == errorCondition)
+            {
+                return SCRIPT_ERROR;
+            }
+        }
 
         for (const auto &nestCondition : nestingConditions)
         {

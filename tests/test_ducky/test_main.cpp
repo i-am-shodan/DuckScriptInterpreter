@@ -267,6 +267,7 @@ int main(void) {
     runTest(24, "examples/variable_assigntoanother.txt", "P30R30");
     runTest(25, "examples/variable_defined_out_of_function.txt", "P4R4P5R5P4R4");
     runTest(26, "examples/long_if.txt", "P5R5");
+    runTest(27, "examples/invalid_syntax_shouldnt_crash2.txt", "ERROR");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

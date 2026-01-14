@@ -157,7 +157,7 @@ private:
     std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
     EvaluationResult evaluate(std::string &str, const ExtensionCommands &extCommands);
     inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
-    int skipLineUntilCondition(const std::string &filePath, int lineNumber, const UserDefinedConstants &userDefinedConstValues, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, int nestingCount = 0, const StatementHandler func = nullptr);
+    int skipLineUntilCondition(const std::string &filePath, int lineNumber, const UserDefinedConstants &userDefinedConstValues, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, const std::vector<std::string> &errorConditions, int nestingCount = 0, const StatementHandler func = nullptr);
     bool assignToVariable(const std::string &variableName, std::string &arg, const ExtensionCommands &extCommands);
     int evaluateIntegerExpression(const std::string &line);
     int pushCallStack(const CallStackItem &item);
