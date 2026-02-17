@@ -153,34 +153,34 @@ void reset()
     testString += "RESET";
 }
 
-int func1(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+int func1(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
     testString += "FUNC1";
     return true;
 }
 
-int func2(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+int func2(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
     testString += "FUNC2";
     return 1;
 }
 
-int func3(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+int func3(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
     testString += "FUNC3";
     return 0;
 }
 
 static int count = 0;
-int trueFiveTimes(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+int trueFiveTimes(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
     auto ret = count < 5;
     count++;
     return ret;
 }
 
-int neverTrue(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+int neverTrue(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
     return 0;
 }
 
 static bool set = false;
-int trueOnce(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+int trueOnce(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
     if (set == false)
     {
         set = true;

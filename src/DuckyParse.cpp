@@ -170,21 +170,21 @@ DuckyInterpreter::DuckyInterpreter(
         const auto &varName = args[0];
         const auto &varValue = args[2];
 
-        int intValue = 0;
+        std::string value;
 
         if (varValue == "TRUE")
         {
-            intValue = 1;
+            value = "1";
         }
         else if (varValue == "FALSE")
         {
-            intValue = 0;
+            value = "0";
         }
         else
         {
             if (std::all_of(varValue.begin(), varValue.end(), ::isdigit))
             {
-                intValue = stoi(varValue);
+                value = varValue;
             }
             else
             {
@@ -193,8 +193,8 @@ DuckyInterpreter::DuckyInterpreter(
             }
         }
 
-        _variables[varName] = intValue;
-        LOG(Log::LOG_DEBUG, "Added variable %s = %d\n", varName.c_str(), intValue);
+        _variables[varName] = value;
+        LOG(Log::LOG_DEBUG, "Added variable %s = %d\n", varName.c_str(), value);
 
         return _lineNumber++;
     };
@@ -326,7 +326,7 @@ DuckyInterpreter::DuckyInterpreter(
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
 
-        const int value = evaluateIntegerExpression(arg);
+        const std::string value = evaluateExpression(arg);
         const std::string variableKey = _callstack.top().functionName + "_RET";
         _variables[variableKey] = value;
 
@@ -796,7 +796,7 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
         size_t pos = str.find(pair.first);
         while (pos != std::string::npos)
         {
-            auto replacementText = std::to_string(pair.second);
+            auto replacementText = pair.second;
 
             str.replace(pos, pair.first.length(), replacementText);
             pos = str.find(pair.first, pos + replacementText.length());
@@ -809,7 +809,7 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
     if (extCommands.find(str) != extCommands.cend())
     {
         LOG(Log::LOG_DEBUG, "\t\tFound extension command to run: %s\r\n", str.c_str());
-        ret.evaluationResult = extCommands.at(str)(str, _constants, _variables);
+        ret.evaluationResult = std::to_string(extCommands.at(str)(str, _constants, _variables));
     }
     else if (_funcLookup.find(str) != _funcLookup.cend())
     {
@@ -834,28 +834,28 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
     else
     {
         LOG(Log::LOG_DEBUG, "\t\tEvaluating text expression: %s\r\n", str.c_str());
-        ret.evaluationResult = evaluateIntegerExpression(str);
+        ret.evaluationResult = evaluateExpression(str);
     }
 
     ret.error = false;
     return ret;
 }
 
-int DuckyInterpreter::evaluateIntegerExpression(const std::string &str)
+std::string DuckyInterpreter::evaluateExpression(const std::string &str)
 {
     const auto &lower = lowerCaseString(str);
     if (lower == "true")
     {
-        return 1;
+        return "1";
     }
     else if (lower == "false")
     {
-        return 0;
+        return "0";
     }
     else
     {
         // convert to int
-        return atoi(str.c_str());
+        return str;
     }
 }
 
@@ -903,8 +903,9 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::s
             return ret;
         }
 
-        int lhsValue = lhsEvalResult.evaluationResult;
-        int rhsValue = rhsEvalResult.evaluationResult;
+        // todo?
+        const int lhsValue = atoi(lhsEvalResult.evaluationResult.c_str());
+        const int rhsValue = atoi(rhsEvalResult.evaluationResult.c_str());
 
         switch (op)
         {
@@ -1213,19 +1214,19 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
 bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::string &arg, const ExtensionCommands &extCommands)
 {
     LOG(Log::LOG_DEBUG, "Assigning expression %s to variable %s\r\n", arg.c_str(), variableName.c_str());
-    int currentValue = _variables[variableName];
+    std::string currentValue = _variables[variableName];
 
     if (isStringDigits(arg))
     {
-        currentValue = atoi(arg.c_str());
+        currentValue = arg;
     }
     else if (arg == "TRUE")
     {
-        currentValue = 1;
+        currentValue = "1";
     }
     else if (arg == "FALSE")
     {
-        currentValue = 0;
+        currentValue = "0";
     }
     else if (_variables.find(arg) != _variables.cend())
     {
@@ -1243,8 +1244,8 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
                 return false;
             }
 
-            int lhsValue = lhsEvalResult.evaluationResult;
-            int rhsValue = rhsEvalResult.evaluationResult;
+            const int& lhsValue = atoi(lhsEvalResult.evaluationResult.c_str());
+            const int& rhsValue = atoi(rhsEvalResult.evaluationResult.c_str());
 
             auto op = std::get<1>(condition);
             LOG(Log::LOG_DEBUG, "Processing condition LHS=%d, OP=%d, RHS=%d\r\n", lhsValue, op, rhsValue);
@@ -1252,19 +1253,19 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
             switch (op)
             {
             case DuckyScriptOperator::ADD:
-                currentValue = lhsValue + rhsValue;
+                currentValue = std::to_string(lhsValue + rhsValue);
                 break;
             case DuckyScriptOperator::SUBTRACT:
-                currentValue = lhsValue - rhsValue;
+                currentValue = std::to_string(lhsValue - rhsValue);
                 break;
             case DuckyScriptOperator::MULTIPLY:
-                currentValue = lhsValue * rhsValue;
+                currentValue = std::to_string(lhsValue * rhsValue);
                 break;
             case DuckyScriptOperator::DIVIDE:
-                currentValue = lhsValue / rhsValue;
+                currentValue = std::to_string(lhsValue / rhsValue);
                 break;
             case DuckyScriptOperator::MOD:
-                currentValue = lhsValue % rhsValue;
+                currentValue = std::to_string(lhsValue % rhsValue);
                 break;
             default:
                 LOG(Log::LOG_DEBUG, "Invalid operator %d\r\n", op);
@@ -1333,7 +1334,7 @@ void DuckyInterpreter::replaceVariablesInLine(std::string &line)
 {
     for (const auto &pair : _variables)
     {
-        line = replaceAllOccurrences(line, pair.first, std::to_string(pair.second));
+        line = replaceAllOccurrences(line, pair.first, pair.second);
     }
 }
 

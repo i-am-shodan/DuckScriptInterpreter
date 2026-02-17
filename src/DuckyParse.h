@@ -73,7 +73,7 @@ public:
 };
 
 typedef int DuckyReturn;
-typedef std::function<int(const std::string&, const std::unordered_map<std::string, std::string>&, const std::unordered_map<std::string, int>&)> ExtensionCommand;
+typedef std::function<int(const std::string&, const std::unordered_map<std::string, std::string>&, const std::unordered_map<std::string, std::string>&)> ExtensionCommand;
 typedef std::unordered_map<std::string, ExtensionCommand> ExtensionCommands;
 typedef std::vector<std::function<std::pair<std::string, std::string>()>> UserDefinedConstants;
 typedef std::function<DuckyReturn(const std::string&, const std::string&, const ExtensionCommands&, const UserDefinedConstants&)> StatementHandler;
@@ -118,7 +118,7 @@ private:
     {
         bool error = true;
         bool requiresScriptEvaluation = false;
-        int evaluationResult = 0;
+        std::string evaluationResult;
         std::string functionName;
     };
 
@@ -140,7 +140,7 @@ private:
 
     std::unordered_map<std::string, StatementHandler> _statementHandlers;
     std::unordered_map<std::string, std::string> _constants;
-    std::unordered_map<std::string, int> _variables;
+    std::unordered_map<std::string, std::string> _variables;
     std::stack<int> _whileLoopLineNumbers;
     std::string _keyboardLayout;
     std::unordered_map<std::string, int> _funcLookup;
@@ -160,7 +160,7 @@ private:
     inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
     int skipLineUntilCondition(const std::string &filePath, int lineNumber, const UserDefinedConstants &userDefinedConstValues, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, const std::vector<std::string> &errorConditions, int nestingCount = 0, const StatementHandler func = nullptr);
     bool assignToVariable(const std::string &variableName, std::string &arg, const ExtensionCommands &extCommands);
-    int evaluateIntegerExpression(const std::string &line);
+    std::string evaluateExpression(const std::string &line);
     int pushCallStack(const CallStackItem &item);
     int getLineAndProcess(const std::string &filePath, const int &lineNum, const UserDefinedConstants &userDefinedConstValues, std::string &line);
     void replaceVariablesInLine(std::string &line);
