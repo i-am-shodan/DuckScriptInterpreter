@@ -184,16 +184,17 @@ DuckyInterpreter::DuckyInterpreter(
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
 
-        const auto args = Ducky::SplitString(arg);
-
-        if (args.size() != 3 || args[1] != "=")
+        size_t eqPos = arg.find('=');
+        if (eqPos == std::string::npos)
         {
-            LOG(Log::LOG_ERROR, "Invalid variable declaration %d\n", args.size());
+            LOG(Log::LOG_ERROR, "Invalid variable declaration\n");
             return (DuckyReturn)SCRIPT_ERROR;
         }
 
-        const auto &varName = args[0];
-        const auto &varValue = args[2];
+        std::string varName = arg.substr(0, eqPos);
+        rtrim(varName);
+        std::string varValue = arg.substr(eqPos + 1);
+        ltrim(varValue);
 
         std::string value;
 
@@ -211,7 +212,7 @@ DuckyInterpreter::DuckyInterpreter(
             {
                 value = varValue;
             }
-            else if (varValue.front() == '"' || varValue.back() == '"' && std::count(varValue.begin(), varValue.end(), '"') == 2)
+            else if (varValue.front() == '"' && varValue.back() == '"' && std::count(varValue.begin(), varValue.end(), '"') == 2)
             {
                 // we add the variable with the double quotes
                 value = varValue;
@@ -353,6 +354,12 @@ DuckyInterpreter::DuckyInterpreter(
 
     _statementHandlers["RETURN"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
+        if (_callstack.empty())
+        {
+            LOG(Log::LOG_ERROR, "RETURN used outside of FUNCTION\r\n");
+            return (DuckyReturn)SCRIPT_ERROR;
+        }
+
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
 
@@ -506,8 +513,14 @@ DuckyInterpreter::DuckyInterpreter(
                 break;
             }
 
-            auto args = line.substr(variableName.size() + 1);
+            auto args = line.substr(variableName.size());
             ltrim(args);
+
+            if (args.empty())
+            {
+                LOG(Log::LOG_DEBUG, "Variable assignment error: missing assignment expression\r\n");
+                break;
+            }
 
             if (args[0] != '=')
             {
@@ -533,6 +546,12 @@ DuckyInterpreter::DuckyInterpreter(
 
     _statementHandlers["END_FUNCTION"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
+        if (_callstack.empty())
+        {
+            LOG(Log::LOG_ERROR, "END_FUNCTION used outside of FUNCTION call\r\n");
+            return (DuckyReturn)SCRIPT_ERROR;
+        }
+
         const auto &callStackItem = _callstack.top();
         LOG(Log::LOG_DEBUG, "END_FUNCTION FOUND, jumping to %d\r\n", callStackItem.returnLineNumber);
         _lineNumber = callStackItem.returnLineNumber + 1;
@@ -682,7 +701,14 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
         std::string op = words[1];
         std::string rhs = words[2];
 
-        return std::make_tuple(lhs, operatorMap[op], rhs);
+        const auto opIt = operatorMap.find(op);
+        if (opIt == operatorMap.cend())
+        {
+            LOG(Log::LOG_WARNING, "Unexpected operator in statement '%s'\r\n", statement.c_str());
+            return std::make_tuple("", DuckyInterpreter::DuckyScriptOperator::NE, "");
+        }
+
+        return std::make_tuple(lhs, opIt->second, rhs);
     }
     else if (words.size() == 1)
     {
@@ -821,7 +847,12 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
     LOG(Log::LOG_DEBUG, "\t\tStatement = '%s'\r\n", str.c_str());
     EvaluationResult ret = {0};
 
-    for (const auto &pair : _variables)
+    std::vector<std::pair<std::string, std::string>> vars(_variables.begin(), _variables.end());
+    std::sort(vars.begin(), vars.end(), [](const auto& a, const auto& b) {
+        return a.first.length() > b.first.length();
+    });
+
+    for (const auto &pair : vars)
     {
         size_t pos = str.find(pair.first);
         while (pos != std::string::npos)
@@ -1105,7 +1136,7 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, const int &lineNu
         // need to skip instructions until we hit END_WHILE
         DuckyReturn newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>());
 
-        if (lineNumber == SCRIPT_ERROR)
+        if (newLineNumber == SCRIPT_ERROR)
         {
             LOG(Log::LOG_DEBUG, "\tError EOF while looking for END_WHILE\r\n");
             return SCRIPT_ERROR;
@@ -1127,9 +1158,9 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lin
 
     const int endOfFunction = skipLineUntilCondition(filePath, lineNumber + 1, userDefinedConstValues, std::vector<std::string>(), std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixFUNCTION});
 
-    if (_lineNumber == SCRIPT_ERROR)
+    if (endOfFunction == SCRIPT_ERROR)
     {
-        LOG(Log::LOG_DEBUG, "\tError EOF while looking for END_WHILE\r\n");
+        LOG(Log::LOG_DEBUG, "\tError EOF while looking for END_FUNCTION\r\n");
         return SCRIPT_ERROR;
     }
 
@@ -1180,7 +1211,7 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
         if (readStatus == SCRIPT_ERROR || readStatus == END_OF_FILE)
         {
             LOG(Log::LOG_DEBUG, "\tError EOF while looking for end condition\r\n");
-            break;
+            return SCRIPT_ERROR;
         }
 
         LOG(Log::LOG_DEBUG, "\tGot line %s\r\n", line.c_str());
@@ -1262,7 +1293,7 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
         }
     }
 
-    return lineNumber;
+    return SCRIPT_ERROR;
 }
 
 bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::string &arg, const ExtensionCommands &extCommands)
@@ -1326,9 +1357,19 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
                 currentValue = std::to_string(lhsValue * rhsValue);
                 break;
             case DuckyScriptOperator::DIVIDE:
+                if (rhsValue == 0)
+                {
+                    LOG(Log::LOG_ERROR, "Division by zero\r\n");
+                    return false;
+                }
                 currentValue = std::to_string(lhsValue / rhsValue);
                 break;
             case DuckyScriptOperator::MOD:
+                if (rhsValue == 0)
+                {
+                    LOG(Log::LOG_ERROR, "Modulo by zero\r\n");
+                    return false;
+                }
                 currentValue = std::to_string(lhsValue % rhsValue);
                 break;
             default:
@@ -1377,7 +1418,12 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
 
     // First we need to loop through any constants that have been defined and replace
     // their usage in the current line
-    for (const auto &constant : _constants)
+    std::vector<std::pair<std::string, std::string>> consts(_constants.begin(), _constants.end());
+    std::sort(consts.begin(), consts.end(), [](const auto& a, const auto& b) {
+        return a.first.length() > b.first.length();
+    });
+
+    for (const auto &constant : consts)
     {
         // LOG(Log::LOG_DEBUG, "Trying to replace '%s' with %s in line %s\r\n", constant.first.c_str(), constant.second.c_str(), line.c_str());
         line = replaceAllOccurrences(line, constant.first, constant.second);
@@ -1396,7 +1442,12 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
 
 void DuckyInterpreter::replaceVariablesInLine(std::string &line, bool dequoteStrValues)
 {
-    for (const auto &pair : _variables)
+    std::vector<std::pair<std::string, std::string>> vars(_variables.begin(), _variables.end());
+    std::sort(vars.begin(), vars.end(), [](const auto& a, const auto& b) {
+        return a.first.length() > b.first.length();
+    });
+
+    for (const auto &pair : vars)
     {
         const bool dequote = (dequoteStrValues && !IsVariableIntType(pair.second));
         line = replaceAllOccurrences(line, pair.first, !dequote ? pair.second : pair.second.substr(1, pair.second.size() - 2));
@@ -1453,7 +1504,11 @@ int DuckyInterpreter::Execute(const std::string &filePath,
 
         LOG(Log::LOG_DEBUG, "line after replacements = '%s'\r\n", line.c_str());
 
-        std::string command = line.substr(0, std::min(line.find(' '), line.find('-')));
+        size_t cmdEnd = std::min(line.find(' '), line.find('-'));
+        if (line.size() >= 2 && line[0] == '$') {
+            cmdEnd = std::min(cmdEnd, line.find('='));
+        }
+        std::string command = line.substr(0, cmdEnd);
         rtrim(command);
         LOG(Log::LOG_DEBUG, "COMMAND = '%s'\r\n", command.c_str());
 

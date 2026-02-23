@@ -202,7 +202,7 @@ public:
         }
     }
 
-    void AddOrUpdateVariable(const std::string &name, const int value)
+    void AddOrUpdateVariable(const std::string &name, const std::string& value)
     {
         _variables[name] = value;
     }
