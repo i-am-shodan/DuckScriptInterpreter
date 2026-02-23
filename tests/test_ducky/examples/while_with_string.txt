@@ -1,0 +1,7 @@
+VAR $STR = "Hello this is a really long string but not too long"
+
+WHILE ($STR == "hello this is a much shorter string")
+    STRING sdfsfsf
+END_WHILE
+
+STRING a

@@ -73,10 +73,10 @@ public:
 };
 
 typedef int DuckyReturn;
-typedef std::function<int(const std::string&, const std::unordered_map<std::string, std::string>&, const std::unordered_map<std::string, std::string>&)> ExtensionCommand;
+typedef std::function<int(const std::string &, const std::unordered_map<std::string, std::string> &, const std::unordered_map<std::string, std::string> &)> ExtensionCommand;
 typedef std::unordered_map<std::string, ExtensionCommand> ExtensionCommands;
 typedef std::vector<std::function<std::pair<std::string, std::string>()>> UserDefinedConstants;
-typedef std::function<DuckyReturn(const std::string&, const std::string&, const ExtensionCommands&, const UserDefinedConstants&)> StatementHandler;
+typedef std::function<DuckyReturn(const std::string &, const std::string &, const ExtensionCommands &, const UserDefinedConstants &)> StatementHandler;
 
 /// @brief Class for handling the implementation of Duck Script parsing
 class DuckyInterpreter
@@ -151,10 +151,10 @@ private:
 
     USBKeyDefinition getUSBKeyDefinition(const std::string &);
     bool performKeyPressesForList(const std::vector<std::pair<bool, uint8_t>> &);
-    int handleIF(const std::string &filePath, const int& lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues);
-    int handleWHILE(const std::string &filePath, const int& lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues);
-    int handleFUNCTION(const std::string &filePath, const int& lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues);
-    CallStackItem evaluateStatement(const std::string &line, const int& lineNumber, const ExtensionCommands &extCommands, bool *conditionToCheck);
+    int handleIF(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues);
+    int handleWHILE(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues);
+    int handleFUNCTION(const std::string &filePath, const int &lineNumber, const std::string &line, const ExtensionCommands &extCommands, const UserDefinedConstants &userDefinedConstValues);
+    CallStackItem evaluateStatement(const std::string &line, const int &lineNumber, const ExtensionCommands &extCommands, bool *conditionToCheck);
     std::vector<std::tuple<std::string, DuckyScriptOperator, std::string>> parseCondition(std::string &condition);
     EvaluationResult evaluate(std::string &str, const ExtensionCommands &extCommands);
     inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::string> parseStatement(std::string statement);
@@ -163,7 +163,7 @@ private:
     std::string evaluateExpression(const std::string &line);
     int pushCallStack(const CallStackItem &item);
     int getLineAndProcess(const std::string &filePath, const int &lineNum, const UserDefinedConstants &userDefinedConstValues, std::string &line);
-    void replaceVariablesInLine(std::string &line);
+    void replaceVariablesInLine(std::string &line, bool dequoteStrValues);
 
 public:
     DuckyInterpreter(
@@ -186,15 +186,18 @@ public:
     {
         _lineNumber = 0;
 
-        while (!_whileLoopLineNumbers.empty()) {
+        while (!_whileLoopLineNumbers.empty())
+        {
             _whileLoopLineNumbers.pop();
         }
 
-        while (!_callstack.empty()) {
+        while (!_callstack.empty())
+        {
             _callstack.pop();
         }
-        
-        while (!_linesToIgnore.empty()) {
+
+        while (!_linesToIgnore.empty())
+        {
             _linesToIgnore.pop();
         }
     }
@@ -217,15 +220,37 @@ inline bool operator&(DuckyInterpreter::USB_MODE a, DuckyInterpreter::USB_MODE b
 
 namespace Ducky
 {
-    // Function to split a string into words
     static std::vector<std::string> SplitString(const std::string &input)
     {
         std::vector<std::string> words;
         std::string word;
+        bool inQuotes = false;
 
-        for (char c : input)
+        for (size_t i = 0; i < input.size(); ++i)
         {
-            if (std::isspace(c))
+            const char c = input[i];
+
+            if (c == '"')
+            {
+                if (inQuotes)
+                {
+                    // Closing quote: push whatever we accumulated (even if empty)
+                    words.push_back("\"" + word + "\"");
+                    word.clear();
+                    inQuotes = false;
+                }
+                else
+                {
+                    // Opening quote: if we had been accumulating an unquoted word, push it first
+                    if (!word.empty())
+                    {
+                        words.push_back(word);
+                        word.clear();
+                    }
+                    inQuotes = true;
+                }
+            }
+            else if (std::isspace(c) && !inQuotes)
             {
                 if (!word.empty())
                 {
@@ -237,6 +262,12 @@ namespace Ducky
             {
                 word += c;
             }
+        }
+
+        // If we ended while still inside quotes, that's an error
+        if (inQuotes)
+        {
+            return {};
         }
 
         if (!word.empty())

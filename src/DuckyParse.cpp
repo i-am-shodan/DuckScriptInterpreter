@@ -87,6 +87,31 @@ static std::unordered_map<std::string, std::unordered_map<std::string, USBKeyDef
 #include "locales/win_tr-TK.h"
 };
 
+
+// This function can only be used after an variable has been added to the _variables list
+static bool IsVariableIntType(const std::string &var)
+{
+    if (var.empty())
+    {
+        return false;
+    }
+
+    // bools are stored as 0 & 1
+    // strings need double ""
+    // as such as string of length 1 is always an int
+    if (var.length() == 1)
+    {
+        return true;
+    }
+
+    if (var.front() == '"' || var.back() == '"')
+    {
+        return false;
+    }
+
+    return true;
+}
+
 bool DuckyInterpreter::SetKeyboardLayout(const std::string &layout)
 {
     if (layout == "win_en-US")
@@ -186,6 +211,11 @@ DuckyInterpreter::DuckyInterpreter(
             {
                 value = varValue;
             }
+            else if (varValue.front() == '"' || varValue.back() == '"' && std::count(varValue.begin(), varValue.end(), '"') == 2)
+            {
+                // we add the variable with the double quotes
+                value = varValue;
+            }
             else
             {
                 LOG(Log::LOG_ERROR, "Invalid variable declaration %s\n", varValue.c_str());
@@ -194,7 +224,7 @@ DuckyInterpreter::DuckyInterpreter(
         }
 
         _variables[varName] = value;
-        LOG(Log::LOG_DEBUG, "Added variable %s = %d\n", varName.c_str(), value);
+        LOG(Log::LOG_DEBUG, "Added variable %s = %s\n", varName.c_str(), value.c_str());
 
         return _lineNumber++;
     };
@@ -203,7 +233,7 @@ DuckyInterpreter::DuckyInterpreter(
     {
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
-        replaceVariablesInLine(arg);
+        replaceVariablesInLine(arg, false);
 
         this->_delayFunc(stoi(arg));
         return _lineNumber++;
@@ -266,7 +296,7 @@ DuckyInterpreter::DuckyInterpreter(
     {
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
-        replaceVariablesInLine(arg);
+        replaceVariablesInLine(arg, false);
 
         const int delay = atoi(arg.c_str());
         _delayFunc(delay);
@@ -376,7 +406,7 @@ DuckyInterpreter::DuckyInterpreter(
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
 
-        replaceVariablesInLine(arg);
+        replaceVariablesInLine(arg, true);
 
         const auto keyWords = Ducky::SplitString(arg);
         if (keyWords.size() == 0)
@@ -531,7 +561,7 @@ DuckyInterpreter::DuckyInterpreter(
         else
         {
             std::string toPrint = line.substr(0, prefixSTRING.size()) == prefixSTRING ? line.substr(command.length() + 1) : command;
-            replaceVariablesInLine(toPrint);
+            replaceVariablesInLine(toPrint, true);
             ltrim(toPrint);
 
             LOG(Log::LOG_DEBUG, "STRING arg = %s\n", toPrint.c_str());
@@ -826,7 +856,7 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
         else
         {
             auto retValue = _variables[variableKey];
-            LOG(Log::LOG_DEBUG, "\t\tReturn code found %d\r\n", retValue);
+            LOG(Log::LOG_DEBUG, "\t\tReturn code found %s\r\n", retValue.c_str());
             _variables.erase(variableKey);
             ret.evaluationResult = retValue;
         }
@@ -903,32 +933,56 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::s
             return ret;
         }
 
-        // todo?
-        const int lhsValue = atoi(lhsEvalResult.evaluationResult.c_str());
-        const int rhsValue = atoi(rhsEvalResult.evaluationResult.c_str());
+        const bool lhsType = IsVariableIntType(lhsEvalResult.evaluationResult);
+        const bool rhsType = IsVariableIntType(rhsEvalResult.evaluationResult);
 
-        switch (op)
+        if (lhsType != rhsType)
         {
-        case DuckyScriptOperator::EQ:
-            *conditionToCheck &= lhsValue == rhsValue;
-            break;
-        case DuckyScriptOperator::NE:
-            *conditionToCheck &= lhsValue != rhsValue;
-            break;
-        case DuckyScriptOperator::GT:
-            *conditionToCheck &= lhsValue > rhsValue;
-            break;
-        case DuckyScriptOperator::GTE:
-            *conditionToCheck &= lhsValue >= rhsValue;
-            break;
-        case DuckyScriptOperator::LT:
-            *conditionToCheck &= lhsValue < rhsValue;
-            break;
-        case DuckyScriptOperator::LTE:
-            *conditionToCheck &= lhsValue <= rhsValue;
-            break;
-        default:
-            break;
+            // A number is being compared to a string
+            // we cannot evaluate two different types
+            LOG(Log::LOG_ERROR, "\tInvalid evaluation, cannot compare string and int LHS = %s, OP = %d, RHS = %s\r\n", lhsStr.c_str(), op, rhsStr.c_str());
+            return ret;
+        }
+
+        if (lhsType) // both are ints
+        {
+            const int lhsValue = atoi(lhsEvalResult.evaluationResult.c_str());
+            const int rhsValue = atoi(rhsEvalResult.evaluationResult.c_str());
+
+            switch (op)
+            {
+            case DuckyScriptOperator::EQ:
+                *conditionToCheck &= lhsValue == rhsValue;
+                break;
+            case DuckyScriptOperator::NE:
+                *conditionToCheck &= lhsValue != rhsValue;
+                break;
+            case DuckyScriptOperator::GT:
+                *conditionToCheck &= lhsValue > rhsValue;
+                break;
+            case DuckyScriptOperator::GTE:
+                *conditionToCheck &= lhsValue >= rhsValue;
+                break;
+            case DuckyScriptOperator::LT:
+                *conditionToCheck &= lhsValue < rhsValue;
+                break;
+            case DuckyScriptOperator::LTE:
+                *conditionToCheck &= lhsValue <= rhsValue;
+                break;
+            default:
+                LOG(Log::LOG_ERROR, "\tInvalid comparision\r\n");
+                return ret;
+            }
+        }
+        else // both are strings
+        {
+            if (op != DuckyScriptOperator::EQ)
+            {
+                LOG(Log::LOG_ERROR, "\tInvalid comparision\r\n");
+                return ret;
+            }
+
+            *conditionToCheck &= lhsEvalResult.evaluationResult == rhsEvalResult.evaluationResult;
         }
     }
 
@@ -1216,7 +1270,11 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
     LOG(Log::LOG_DEBUG, "Assigning expression %s to variable %s\r\n", arg.c_str(), variableName.c_str());
     std::string currentValue = _variables[variableName];
 
-    if (isStringDigits(arg))
+    if (arg.front() == '"' || arg.back() == '"')
+    {
+        currentValue = arg;
+    }
+    else if (isStringDigits(arg))
     {
         currentValue = arg;
     }
@@ -1241,6 +1299,12 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
 
             if (lhsEvalResult.requiresScriptEvaluation || rhsEvalResult.requiresScriptEvaluation)
             {
+                return false;
+            }
+
+            if (!IsVariableIntType(lhsEvalResult.evaluationResult) || !IsVariableIntType(rhsEvalResult.evaluationResult))
+            {
+                LOG(Log::LOG_DEBUG, "Cannot do math on strings\r\n");
                 return false;
             }
 
@@ -1274,7 +1338,7 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
         }
     }
 
-    LOG(Log::LOG_DEBUG, "Setting variable %s to %d\r\n", variableName.c_str(), currentValue);
+    LOG(Log::LOG_DEBUG, "Setting variable %s to %s\r\n", variableName.c_str(), currentValue.c_str());
     _variables[variableName] = currentValue;
 
     return true;
@@ -1283,7 +1347,7 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
 int DuckyInterpreter::pushCallStack(const CallStackItem &item)
 {
     const auto functionLineNumber = _funcLookup[item.functionName];
-    LOG(Log::LOG_DEBUG, "Setting lineNumber to %d to execute function %s\r\n", functionLineNumber, item.functionName);
+    LOG(Log::LOG_DEBUG, "Setting lineNumber to %d to execute function %s\r\n", functionLineNumber, item.functionName.c_str());
     _callstack.emplace(item);
     _lineNumber = functionLineNumber;
     return functionLineNumber;
@@ -1330,11 +1394,12 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
     return ret;
 }
 
-void DuckyInterpreter::replaceVariablesInLine(std::string &line)
+void DuckyInterpreter::replaceVariablesInLine(std::string &line, bool dequoteStrValues)
 {
     for (const auto &pair : _variables)
     {
-        line = replaceAllOccurrences(line, pair.first, pair.second);
+        const bool dequote = (dequoteStrValues && !IsVariableIntType(pair.second));
+        line = replaceAllOccurrences(line, pair.first, !dequote ? pair.second : pair.second.substr(1, pair.second.size() - 2));
     }
 }
 
@@ -1405,7 +1470,7 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         }
 
         // we can now replace any variables that still exist in the line as flow control has finished
-        replaceVariablesInLine(line);
+        replaceVariablesInLine(line, false);
 
         // Next check if we have any extension commands
         if (extCommands.find(command) != extCommands.cend())

@@ -268,6 +268,9 @@ int main(void) {
     runTest(25, "examples/variable_defined_out_of_function.txt", "P4R4P5R5P4R4");
     runTest(26, "examples/long_if.txt", "P5R5");
     runTest(27, "examples/invalid_syntax_shouldnt_crash2.txt", "ERROR");
+    runTest(28, "examples/string_variables.txt", "P4R4P5R5P5R5P5R5P5R5");
+    runTest(29, "examples/function_returns_string.txt", "P4R4");
+    runTest(30, "examples/while_with_string.txt", "P4R4");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

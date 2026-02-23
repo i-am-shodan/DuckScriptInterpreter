@@ -1,0 +1,11 @@
+FUNCTION A()
+    RETURN "Hello"
+END_FUNCTION
+
+IF (A() == "Hello")
+    STRING a
+END_IF
+
+IF (A() == "Hell")
+    STRING b
+END_IF
