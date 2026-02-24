@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 static constexpr const char *UP = "UP";
 static constexpr const char *DOWN = "DOWN";
 static constexpr const char *LEFT = "LEFT";
@@ -48,7 +50,13 @@ static constexpr const char *NUMLOCK = "NUMLOCK";
 static constexpr const char *SCROLLOCK = "SCROLLLOCK";
 static constexpr const uint8_t SHIFT_KEY = 0xe1;
 
-static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
+struct KeyLookupEntry
+{
+    const char *key;
+    USBKeyDefinition definition;
+};
+
+static const KeyLookupEntry keyLookupTable[] = {
     {"a", USBKeyDefinition(0x04)},
     {"A", USBKeyDefinition(USBKeyDefinition::UsbHidModifiers::LeftShift, 0x04)},
     {"b", USBKeyDefinition(0x05)},
@@ -198,8 +206,7 @@ static std::unordered_map<std::string, USBKeyDefinition> keyLookupTable = {
     {NUMLOCK, USBKeyDefinition(0x53)},
     {SCROLLOCK, USBKeyDefinition(0x47)}};
 
-static std::vector<const char *> systemKeys =
-    {
+static const char *systemKeys[] = {
         UP,
         DOWN,
         LEFT,
@@ -246,3 +253,32 @@ static std::vector<const char *> systemKeys =
         CAPSLOCK,
         NUMLOCK,
         SCROLLOCK};
+
+static inline const USBKeyDefinition *findKeyDefinition(const std::string &key)
+{
+    const size_t count = sizeof(keyLookupTable) / sizeof(keyLookupTable[0]);
+    for (size_t i = 0; i < count; ++i)
+    {
+        const auto &entry = keyLookupTable[i];
+        if (key == entry.key)
+        {
+            return &entry.definition;
+        }
+    }
+
+    return nullptr;
+}
+
+static inline bool isSystemKey(const std::string &key)
+{
+    const size_t count = sizeof(systemKeys) / sizeof(systemKeys[0]);
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (key == systemKeys[i])
+        {
+            return true;
+        }
+    }
+
+    return false;
+}

@@ -69,14 +69,14 @@ static std::string readLineFromFile(const std::string& filename, int lineNumber)
     return ""; // A completely empty string indicates EOF 
 }
 
-static int fire_missles_custom_function(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+static std::string fire_missles_custom_function(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     printf("Firing missiles!!!!\n");
-    return true;
+    return "1";
 }
 
-static int flash_warning_custom_function(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, int> variables) {
+static std::string flash_warning_custom_function(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     printf("\nWARNING WARNING WARNING\n");
-    return true;
+    return "1";
 }
 
 int main(void) {

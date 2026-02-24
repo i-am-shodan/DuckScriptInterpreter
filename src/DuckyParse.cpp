@@ -26,6 +26,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <algorithm>
 #include <cctype>
+#include <initializer_list>
 
 using namespace std;
 using namespace Ducky;
@@ -46,8 +47,43 @@ static const std::string prefixSTRING = "STRING";
 static const std::string prefixEND_STRING = "END_STRING";
 static const std::string prefixSTRINGLN = "STRINGLN";
 static const std::string prefixEND_STRINGLN = "END_STRINGLN";
+static const std::string AliasTRUE = "TRUE";
+static const std::string AliasFALSE = "FALSE";
 
-static std::unordered_map<std::string, DuckyInterpreter::DuckyScriptOperator> operatorMap = {
+static const std::vector<std::string> kEmptyConditions = {};
+static const std::vector<std::string> kNestingIF = {prefixIF};
+static const std::vector<std::string> kEndIF = {prefixEND_IF};
+static const std::vector<std::string> kMatchEndIF = {prefixEND_IF};
+static const std::vector<std::string> kMatchElseAndEndIF = {prefixEND_IF, prefixELSE_IF, prefixELSE};
+static const std::vector<std::string> kMatchElseOrEndIF = {prefixELSE_IF, prefixELSE, prefixEND_IF};
+static const std::vector<std::string> kNestingWHILE = {PrefixWHILE};
+static const std::vector<std::string> kEndWHILE = {EndWHILE};
+static const std::vector<std::string> kMatchEndWHILE = {EndWHILE};
+static const std::vector<std::string> kEndFunction = {prefixEND_FUNCTION};
+static const std::vector<std::string> kErrorFunctionDecl = {prefixFUNCTION};
+static const std::vector<std::string> kErrorStringBlocks = {prefixSTRING, prefixSTRINGLN};
+static const std::vector<std::string> kEndStringBlock = {prefixEND_STRING};
+static const std::vector<std::string> kEndStringLnBlock = {prefixEND_STRINGLN};
+
+struct OperatorLookupEntry
+{
+    const char *op;
+    DuckyInterpreter::DuckyScriptOperator value;
+};
+
+struct LayoutKeyLookupEntry
+{
+    const char *key;
+    USBKeyDefinition definition;
+};
+
+struct LayoutLookupEntry
+{
+    const char *layout;
+    std::initializer_list<LayoutKeyLookupEntry> keys;
+};
+
+static const OperatorLookupEntry operatorMap[] = {
     {"==", DuckyInterpreter::DuckyScriptOperator::EQ},
     {"!=", DuckyInterpreter::DuckyScriptOperator::NE},
     {">", DuckyInterpreter::DuckyScriptOperator::GT},
@@ -61,7 +97,8 @@ static std::unordered_map<std::string, DuckyInterpreter::DuckyScriptOperator> op
     {"/", DuckyInterpreter::DuckyScriptOperator::DIVIDE},
     {"%", DuckyInterpreter::DuckyScriptOperator::MOD}};
 
-static std::unordered_map<std::string, std::unordered_map<std::string, USBKeyDefinition>> langLookupTable = {
+static const LayoutLookupEntry langLookupTable[] = {
+    {"", {}},
 #include "locales/win_be.h"
 #include "locales/win_ca-FR.h"
 #include "locales/win_ca.h"
@@ -86,6 +123,50 @@ static std::unordered_map<std::string, std::unordered_map<std::string, USBKeyDef
 #include "locales/win_sk-SK.h"
 #include "locales/win_tr-TK.h"
 };
+
+static const LayoutLookupEntry *findLayoutTable(const std::string &layout)
+{
+    const size_t count = sizeof(langLookupTable) / sizeof(langLookupTable[0]);
+    for (size_t i = 0; i < count; ++i)
+    {
+        const auto &entry = langLookupTable[i];
+        if (layout == entry.layout)
+        {
+            return &entry;
+        }
+    }
+
+    return nullptr;
+}
+
+static const USBKeyDefinition *findLayoutKeyDefinition(const LayoutLookupEntry &layout, const std::string &key)
+{
+    for (const auto &entry : layout.keys)
+    {
+        if (key == entry.key)
+        {
+            return &entry.definition;
+        }
+    }
+
+    return nullptr;
+}
+
+static bool tryGetOperator(const std::string &op, DuckyInterpreter::DuckyScriptOperator &value)
+{
+    const size_t count = sizeof(operatorMap) / sizeof(operatorMap[0]);
+    for (size_t i = 0; i < count; ++i)
+    {
+        const auto &entry = operatorMap[i];
+        if (op == entry.op)
+        {
+            value = entry.value;
+            return true;
+        }
+    }
+
+    return false;
+}
 
 
 // This function can only be used after an variable has been added to the _variables list
@@ -119,7 +200,7 @@ bool DuckyInterpreter::SetKeyboardLayout(const std::string &layout)
         _keyboardLayout.clear();
         return true;
     }
-    else if (langLookupTable.find(layout) != langLookupTable.cend())
+    else if (findLayoutTable(layout) != nullptr)
     {
         _keyboardLayout = layout;
         return true;
@@ -130,20 +211,24 @@ bool DuckyInterpreter::SetKeyboardLayout(const std::string &layout)
 USBKeyDefinition DuckyInterpreter::getUSBKeyDefinition(const std::string &keyStr)
 {
     // First look to see if a locale has been set and we have a lookup for this key
-    if (_keyboardLayout.length() != 0)
+    if (!_keyboardLayout.empty())
     {
-        auto &table = langLookupTable[_keyboardLayout];
-        if (table.find(keyStr) != table.cend())
+        const auto *layoutTable = findLayoutTable(_keyboardLayout);
+        if (layoutTable != nullptr)
         {
-            LOG(Log::LOG_DEBUG, "Key string (%s) found in langLookupTable\n", keyStr.c_str());
-            return table[keyStr];
+            const auto *key = findLayoutKeyDefinition(*layoutTable, keyStr);
+            if (key != nullptr)
+            {
+                LOG(Log::LOG_DEBUG, "Key string (%s) found in langLookupTable\n", keyStr.c_str());
+                return *key;
+            }
         }
     }
 
-    const auto it = keyLookupTable.find(keyStr);
-    if (it != keyLookupTable.cend())
+    const auto *key = findKeyDefinition(keyStr);
+    if (key != nullptr)
     {
-        return it->second;
+        return *key;
     }
     else
     {
@@ -171,6 +256,10 @@ DuckyInterpreter::DuckyInterpreter(
       _reset(reset),
       _constants(),
       _variables(),
+    _sortedConstantKeys(),
+    _sortedVariableKeys(),
+    _constantsKeyCacheDirty(true),
+    _variablesKeyCacheDirty(true),
       _whileLoopLineNumbers(),
       _keyboardLayout(),
       _funcLookup(),
@@ -184,27 +273,26 @@ DuckyInterpreter::DuckyInterpreter(
         std::string arg = line.substr(command.length() + 1);
         ltrim(arg);
 
-        size_t eqPos = arg.find('=');
-        if (eqPos == std::string::npos)
+        const auto args = Ducky::SplitString(arg);
+
+        if (args.size() != 3 || args[1] != "=")
         {
-            LOG(Log::LOG_ERROR, "Invalid variable declaration\n");
+            LOG(Log::LOG_ERROR, "Invalid variable declaration %d\n", args.size());
             return (DuckyReturn)SCRIPT_ERROR;
         }
 
-        std::string varName = arg.substr(0, eqPos);
-        rtrim(varName);
-        std::string varValue = arg.substr(eqPos + 1);
-        ltrim(varValue);
+        const auto &varName = args[0];
+        const auto &varValue = args[2];
 
         std::string value;
 
-        if (varValue == "TRUE")
+        if (varValue == AliasTRUE)
         {
-            value = "1";
+            value = DuckyInterpreter::TRUE;
         }
-        else if (varValue == "FALSE")
+        else if (varValue == AliasFALSE)
         {
-            value = "0";
+            value = DuckyInterpreter::FALSE;
         }
         else
         {
@@ -224,7 +312,12 @@ DuckyInterpreter::DuckyInterpreter(
             }
         }
 
+        const bool isNewVariable = _variables.find(varName) == _variables.cend();
         _variables[varName] = value;
+        if (isNewVariable)
+        {
+            _variablesKeyCacheDirty = true;
+        }
         LOG(Log::LOG_DEBUG, "Added variable %s = %s\n", varName.c_str(), value.c_str());
 
         return _lineNumber++;
@@ -244,6 +337,7 @@ DuckyInterpreter::DuckyInterpreter(
     {
         // this is our internal function to handle all the system keys
         std::vector<uint8_t> keysToHold;
+        keysToHold.reserve(6);
         uint8_t modifier = 0;
 
         LOG(Log::LOG_DEBUG, "System key line '%s'\n", line.c_str());
@@ -290,17 +384,6 @@ DuckyInterpreter::DuckyInterpreter(
         this->_keyboardPressFunc(modifier, key1, key2, key3, key4, key5, key6);
         this->_keyboardReleaseFunc();
 
-        return _lineNumber++;
-    };
-
-    _statementHandlers["DELAY"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
-    {
-        std::string arg = line.substr(command.length() + 1);
-        ltrim(arg);
-        replaceVariablesInLine(arg, false);
-
-        const int delay = atoi(arg.c_str());
-        _delayFunc(delay);
         return _lineNumber++;
     };
 
@@ -365,7 +448,12 @@ DuckyInterpreter::DuckyInterpreter(
 
         const std::string value = evaluateExpression(arg);
         const std::string variableKey = _callstack.top().functionName + "_RET";
+        const bool isNewVariable = _variables.find(variableKey) == _variables.cend();
         _variables[variableKey] = value;
+        if (isNewVariable)
+        {
+            _variablesKeyCacheDirty = true;
+        }
 
         _lineNumber = _callstack.top().returnLineNumber - 1; // todo I hate this, this is to stop the increment that happens after
         LOG(Log::LOG_DEBUG, "RETURN FOUND, jumping to %d\r\n", _lineNumber);
@@ -382,7 +470,12 @@ DuckyInterpreter::DuckyInterpreter(
         const auto ret = extractFirstWord(arg);
 
         // add this constant to our list
+        const bool isNewConstant = _constants.find(ret.first) == _constants.cend();
         _constants[ret.first] = ret.second;
+        if (isNewConstant)
+        {
+            _constantsKeyCacheDirty = true;
+        }
 
         return _lineNumber++;
     };
@@ -568,9 +661,10 @@ DuckyInterpreter::DuckyInterpreter(
         if (isStringBlock)
         {
             const auto &function = _statementHandlers[line.size() == prefixSTRING.size() ? prefixSTRING : "STRINGLN "];
-            const auto &endMarker = line.size() == prefixSTRING.size() ? prefixEND_STRING : prefixEND_STRINGLN;
+            const bool isStringLineBlock = line.size() == prefixSTRINGLN.size();
+            const auto &endMarkerCondition = isStringLineBlock ? kEndStringLnBlock : kEndStringBlock;
 
-            ret = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, udc, std::vector<std::string>(), std::vector<std::string>{endMarker}, std::vector<std::string>{endMarker}, std::vector<std::string>{prefixSTRING, prefixSTRINGLN}, 0, function);
+            ret = skipLineUntilCondition(currentlyExecutingFile, _lineNumber, udc, kEmptyConditions, endMarkerCondition, endMarkerCondition, kErrorStringBlocks, 0, function);
 
             if (ret != SCRIPT_ERROR && ret != END_OF_FILE)
             {
@@ -701,14 +795,14 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
         std::string op = words[1];
         std::string rhs = words[2];
 
-        const auto opIt = operatorMap.find(op);
-        if (opIt == operatorMap.cend())
+        DuckyInterpreter::DuckyScriptOperator parsedOperator = DuckyInterpreter::DuckyScriptOperator::NE;
+        if (!tryGetOperator(op, parsedOperator))
         {
             LOG(Log::LOG_WARNING, "Unexpected operator in statement '%s'\r\n", statement.c_str());
             return std::make_tuple("", DuckyInterpreter::DuckyScriptOperator::NE, "");
         }
 
-        return std::make_tuple(lhs, opIt->second, rhs);
+        return std::make_tuple(lhs, parsedOperator, rhs);
     }
     else if (words.size() == 1)
     {
@@ -847,20 +941,22 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
     LOG(Log::LOG_DEBUG, "\t\tStatement = '%s'\r\n", str.c_str());
     EvaluationResult ret = {0};
 
-    std::vector<std::pair<std::string, std::string>> vars(_variables.begin(), _variables.end());
-    std::sort(vars.begin(), vars.end(), [](const auto& a, const auto& b) {
-        return a.first.length() > b.first.length();
-    });
+    rebuildSortedVariableKeysIfNeeded();
 
-    for (const auto &pair : vars)
+    for (const auto &key : _sortedVariableKeys)
     {
-        size_t pos = str.find(pair.first);
+        const auto varIt = _variables.find(key);
+        if (varIt == _variables.cend())
+        {
+            continue;
+        }
+
+        const auto &replacementText = varIt->second;
+        size_t pos = str.find(key);
         while (pos != std::string::npos)
         {
-            auto replacementText = pair.second;
-
-            str.replace(pos, pair.first.length(), replacementText);
-            pos = str.find(pair.first, pos + replacementText.length());
+            str.replace(pos, key.length(), replacementText);
+            pos = str.find(key, pos + replacementText.length());
         }
     }
 
@@ -870,7 +966,7 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
     if (extCommands.find(str) != extCommands.cend())
     {
         LOG(Log::LOG_DEBUG, "\t\tFound extension command to run: %s\r\n", str.c_str());
-        ret.evaluationResult = std::to_string(extCommands.at(str)(str, _constants, _variables));
+        ret.evaluationResult = evaluateExpression(extCommands.at(str)(str, _constants, _variables));
     }
     else if (_funcLookup.find(str) != _funcLookup.cend())
     {
@@ -889,6 +985,7 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
             auto retValue = _variables[variableKey];
             LOG(Log::LOG_DEBUG, "\t\tReturn code found %s\r\n", retValue.c_str());
             _variables.erase(variableKey);
+            _variablesKeyCacheDirty = true;
             ret.evaluationResult = retValue;
         }
     }
@@ -907,11 +1004,11 @@ std::string DuckyInterpreter::evaluateExpression(const std::string &str)
     const auto &lower = lowerCaseString(str);
     if (lower == "true")
     {
-        return "1";
+        return DuckyInterpreter::TRUE;
     }
     else if (lower == "false")
     {
-        return "0";
+        return DuckyInterpreter::FALSE;
     }
     else
     {
@@ -1051,8 +1148,8 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
         // * the END_IF statement
         // If we see and ELSE or ELSE IF we add any line up to the end of the IF statement to linesToIgnore
         // When we've finished processing this code block we will fall into these lines and the process will skip over them.
-        int endOfIFStatement = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>());
-        int startOfAdditionalClauses = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixEND_IF, prefixELSE_IF, prefixELSE}, std::vector<std::string>());
+        int endOfIFStatement = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, kNestingIF, kEndIF, kMatchEndIF, kEmptyConditions);
+        int startOfAdditionalClauses = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, kNestingIF, kEndIF, kMatchElseAndEndIF, kEmptyConditions);
 
         // we only need to add to linesToIgnore if this is an if..else or if...else if
         if (endOfIFStatement != startOfAdditionalClauses)
@@ -1068,7 +1165,7 @@ DuckyReturn DuckyInterpreter::handleIF(const std::string &filePath, const int &l
         LOG(Log::LOG_DEBUG, "\tEvaluation was false, skipping to next statement\r\n");
 
         // need to skip instructions until we hit ELSE, ELSE IF or END_IF
-        int newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{prefixIF}, std::vector<std::string>{prefixEND_IF}, std::vector<std::string>{prefixELSE_IF, prefixELSE, prefixEND_IF}, std::vector<std::string>());
+        int newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, kNestingIF, kEndIF, kMatchElseOrEndIF, kEmptyConditions);
 
         if (newLineNumber == SCRIPT_ERROR)
         {
@@ -1134,7 +1231,7 @@ int DuckyInterpreter::handleWHILE(const std::string &filePath, const int &lineNu
     else
     {
         // need to skip instructions until we hit END_WHILE
-        DuckyReturn newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, std::vector<std::string>{PrefixWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>{EndWHILE}, std::vector<std::string>());
+        DuckyReturn newLineNumber = skipLineUntilCondition(filePath, lineNumber, userDefinedConstValues, kNestingWHILE, kEndWHILE, kMatchEndWHILE, kEmptyConditions);
 
         if (newLineNumber == SCRIPT_ERROR)
         {
@@ -1156,7 +1253,7 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lin
         return false;
     }
 
-    const int endOfFunction = skipLineUntilCondition(filePath, lineNumber + 1, userDefinedConstValues, std::vector<std::string>(), std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixEND_FUNCTION}, std::vector<std::string>{prefixFUNCTION});
+    const int endOfFunction = skipLineUntilCondition(filePath, lineNumber + 1, userDefinedConstValues, kEmptyConditions, kEndFunction, kEndFunction, kErrorFunctionDecl);
 
     if (endOfFunction == SCRIPT_ERROR)
     {
@@ -1184,6 +1281,9 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lin
 int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int lineNumber, const UserDefinedConstants &userDefinedConstValues, const std::vector<std::string> &nestingConditions, const std::vector<std::string> &endConditions, const std::vector<std::string> &matchingConditions, const std::vector<std::string> &errorConditions, int nestingCount, const StatementHandler func)
 {
     LOG(Log::LOG_DEBUG, "\tSkipping lines until condition(s) is met\r\n");
+
+    static const ExtensionCommands kEmptyExtensionCommands;
+    static const UserDefinedConstants kEmptyUserDefinedConstants;
 
     for (const auto &nestCondition : nestingConditions)
     {
@@ -1282,11 +1382,7 @@ int DuckyInterpreter::skipLineUntilCondition(const std::string &filePath, int li
 
         if (func != nullptr)
         {
-            // todo, don't like the creation of these
-            ExtensionCommands ext;
-            UserDefinedConstants udc;
-
-            if (func(line, line, ext, udc) == SCRIPT_ERROR)
+            if (func(line, line, kEmptyExtensionCommands, kEmptyUserDefinedConstants) == SCRIPT_ERROR)
             {
                 return SCRIPT_ERROR;
             }
@@ -1309,13 +1405,13 @@ bool DuckyInterpreter::assignToVariable(const std::string &variableName, std::st
     {
         currentValue = arg;
     }
-    else if (arg == "TRUE")
+    else if (arg == AliasTRUE)
     {
-        currentValue = "1";
+        currentValue = DuckyInterpreter::TRUE;
     }
-    else if (arg == "FALSE")
+    else if (arg == AliasFALSE)
     {
-        currentValue = "0";
+        currentValue = DuckyInterpreter::FALSE;
     }
     else if (_variables.find(arg) != _variables.cend())
     {
@@ -1418,15 +1514,17 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
 
     // First we need to loop through any constants that have been defined and replace
     // their usage in the current line
-    std::vector<std::pair<std::string, std::string>> consts(_constants.begin(), _constants.end());
-    std::sort(consts.begin(), consts.end(), [](const auto& a, const auto& b) {
-        return a.first.length() > b.first.length();
-    });
-
-    for (const auto &constant : consts)
+    rebuildSortedConstantKeysIfNeeded();
+    for (const auto &constantKey : _sortedConstantKeys)
     {
+        const auto constantIt = _constants.find(constantKey);
+        if (constantIt == _constants.cend())
+        {
+            continue;
+        }
+
         // LOG(Log::LOG_DEBUG, "Trying to replace '%s' with %s in line %s\r\n", constant.first.c_str(), constant.second.c_str(), line.c_str());
-        line = replaceAllOccurrences(line, constant.first, constant.second);
+        line = replaceAllOccurrences(line, constantKey, constantIt->second);
     }
 
     for (const auto &userDefinedFunction : userDefinedConstValues)
@@ -1442,16 +1540,66 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
 
 void DuckyInterpreter::replaceVariablesInLine(std::string &line, bool dequoteStrValues)
 {
-    std::vector<std::pair<std::string, std::string>> vars(_variables.begin(), _variables.end());
-    std::sort(vars.begin(), vars.end(), [](const auto& a, const auto& b) {
-        return a.first.length() > b.first.length();
+    rebuildSortedVariableKeysIfNeeded();
+
+    for (const auto &key : _sortedVariableKeys)
+    {
+        const auto varIt = _variables.find(key);
+        if (varIt == _variables.cend())
+        {
+            continue;
+        }
+
+        const auto &value = varIt->second;
+        const bool dequote = (dequoteStrValues && !IsVariableIntType(value));
+        line = replaceAllOccurrences(line, key, !dequote ? value : value.substr(1, value.size() - 2));
+    }
+}
+
+void DuckyInterpreter::rebuildSortedConstantKeysIfNeeded()
+{
+    if (!_constantsKeyCacheDirty)
+    {
+        return;
+    }
+
+    _sortedConstantKeys.clear();
+    _sortedConstantKeys.reserve(_constants.size());
+
+    for (const auto &entry : _constants)
+    {
+        _sortedConstantKeys.push_back(entry.first);
+    }
+
+    std::sort(_sortedConstantKeys.begin(), _sortedConstantKeys.end(), [](const std::string &a, const std::string &b)
+    {
+        return a.length() > b.length();
     });
 
-    for (const auto &pair : vars)
+    _constantsKeyCacheDirty = false;
+}
+
+void DuckyInterpreter::rebuildSortedVariableKeysIfNeeded()
+{
+    if (!_variablesKeyCacheDirty)
     {
-        const bool dequote = (dequoteStrValues && !IsVariableIntType(pair.second));
-        line = replaceAllOccurrences(line, pair.first, !dequote ? pair.second : pair.second.substr(1, pair.second.size() - 2));
+        return;
     }
+
+    _sortedVariableKeys.clear();
+    _sortedVariableKeys.reserve(_variables.size());
+
+    for (const auto &entry : _variables)
+    {
+        _sortedVariableKeys.push_back(entry.first);
+    }
+
+    std::sort(_sortedVariableKeys.begin(), _sortedVariableKeys.end(), [](const std::string &a, const std::string &b)
+    {
+        return a.length() > b.length();
+    });
+
+    _variablesKeyCacheDirty = false;
 }
 
 int DuckyInterpreter::Execute(const std::string &filePath,
@@ -1504,11 +1652,7 @@ int DuckyInterpreter::Execute(const std::string &filePath,
 
         LOG(Log::LOG_DEBUG, "line after replacements = '%s'\r\n", line.c_str());
 
-        size_t cmdEnd = std::min(line.find(' '), line.find('-'));
-        if (line.size() >= 2 && line[0] == '$') {
-            cmdEnd = std::min(cmdEnd, line.find('='));
-        }
-        std::string command = line.substr(0, cmdEnd);
+        std::string command = line.substr(0, std::min(line.find(' '), line.find('-')));
         rtrim(command);
         LOG(Log::LOG_DEBUG, "COMMAND = '%s'\r\n", command.c_str());
 
@@ -1530,12 +1674,13 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         // Next check if we have any extension commands
         if (extCommands.find(command) != extCommands.cend())
         {
-            ret = extCommands.at(command)(line, _constants, _variables) == true ? _lineNumber++ : SCRIPT_ERROR;
+            const auto extCommandResult = evaluateExpression(extCommands.at(command)(line, _constants, _variables));
+            ret = extCommandResult == DuckyInterpreter::TRUE ? _lineNumber++ : SCRIPT_ERROR;
             break;
         }
 
         // Finally determine where this command is actually a system key we need to press
-        if (std::find(systemKeys.cbegin(), systemKeys.cend(), command) != systemKeys.cend())
+        if (isSystemKey(command))
         {
             LOG(Log::LOG_DEBUG, "_SYSTEMKEY FOUND\n");
 

@@ -10,8 +10,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #pragma once
 
-#include <iostream>
-#include <fstream>
 #include <string>
 #include <unordered_map>
 #include <functional>
@@ -43,37 +41,37 @@ public:
     UsbHidModifiers modifier = UsbHidModifiers::INVALID;
     uint8_t hidCode = 0;
 
-    USBKeyDefinition(UsbHidModifiers mod, uint8_t code)
+    constexpr USBKeyDefinition(UsbHidModifiers mod, uint8_t code)
     {
         this->modifier = mod;
         this->hidCode = code;
     }
 
-    USBKeyDefinition(uint8_t code)
+    constexpr USBKeyDefinition(uint8_t code)
     {
         this->hidCode = code;
         this->modifier = UsbHidModifiers::None;
     }
 
-    USBKeyDefinition(UsbHidModifiers mod)
+    constexpr USBKeyDefinition(UsbHidModifiers mod)
     {
         this->hidCode = 0;
         this->modifier = mod;
     }
 
-    USBKeyDefinition()
+    constexpr USBKeyDefinition()
     {
         // invalid
     }
 
-    bool isValid()
+    constexpr bool isValid() const
     {
         return modifier != UsbHidModifiers::INVALID;
     }
 };
 
 typedef int DuckyReturn;
-typedef std::function<int(const std::string &, const std::unordered_map<std::string, std::string> &, const std::unordered_map<std::string, std::string> &)> ExtensionCommand;
+typedef std::function<std::string(const std::string &, const std::unordered_map<std::string, std::string> &, const std::unordered_map<std::string, std::string> &)> ExtensionCommand;
 typedef std::unordered_map<std::string, ExtensionCommand> ExtensionCommands;
 typedef std::vector<std::function<std::pair<std::string, std::string>()>> UserDefinedConstants;
 typedef std::function<DuckyReturn(const std::string &, const std::string &, const ExtensionCommands &, const UserDefinedConstants &)> StatementHandler;
@@ -84,6 +82,8 @@ class DuckyInterpreter
 public:
     static const int16_t SCRIPT_ERROR = -2;
     static const int16_t END_OF_FILE = -1;
+    static constexpr const char *TRUE = "1";
+    static constexpr const char *FALSE = "0";
 
     enum class USB_MODE : uint8_t
     {
@@ -141,6 +141,10 @@ private:
     std::unordered_map<std::string, StatementHandler> _statementHandlers;
     std::unordered_map<std::string, std::string> _constants;
     std::unordered_map<std::string, std::string> _variables;
+    std::vector<std::string> _sortedConstantKeys;
+    std::vector<std::string> _sortedVariableKeys;
+    bool _constantsKeyCacheDirty;
+    bool _variablesKeyCacheDirty;
     std::stack<int> _whileLoopLineNumbers;
     std::string _keyboardLayout;
     std::unordered_map<std::string, int> _funcLookup;
@@ -164,6 +168,8 @@ private:
     int pushCallStack(const CallStackItem &item);
     int getLineAndProcess(const std::string &filePath, const int &lineNum, const UserDefinedConstants &userDefinedConstValues, std::string &line);
     void replaceVariablesInLine(std::string &line, bool dequoteStrValues);
+    void rebuildSortedConstantKeysIfNeeded();
+    void rebuildSortedVariableKeysIfNeeded();
 
 public:
     DuckyInterpreter(
@@ -204,7 +210,12 @@ public:
 
     void AddOrUpdateVariable(const std::string &name, const std::string& value)
     {
+        const bool isNewVariable = _variables.find(name) == _variables.cend();
         _variables[name] = value;
+        if (isNewVariable)
+        {
+            _variablesKeyCacheDirty = true;
+        }
     }
 };
 

@@ -14,6 +14,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <sstream>
 #include <iomanip>
 #include <map>
+#include <iostream>
+#include <fstream>
 
 #include "DuckyParse.h"
 #include "Logging.h"
@@ -153,40 +155,40 @@ void reset()
     testString += "RESET";
 }
 
-int func1(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
+std::string func1(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     testString += "FUNC1";
-    return true;
+    return "1";
 }
 
-int func2(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
+std::string func2(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     testString += "FUNC2";
-    return 1;
+    return "1";
 }
 
-int func3(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
+std::string func3(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     testString += "FUNC3";
-    return 0;
+    return "0";
 }
 
 static int count = 0;
-int trueFiveTimes(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
+std::string trueFiveTimes(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     auto ret = count < 5;
     count++;
-    return ret;
+    return ret ? "1" : "0";
 }
 
-int neverTrue(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
-    return 0;
+std::string neverTrue(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
+    return "0";
 }
 
 static bool set = false;
-int trueOnce(const std::string& str, std::unordered_map<std::string, std::string> constants, std::unordered_map<std::string, std::string> variables) {
+std::string trueOnce(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     if (set == false)
     {
         set = true;
-        return 1;
+        return "1";
     }
-    return 0;
+    return "0";
 }
 
 void runTest(int id, std::string filename, std::string output, std::string lang = "")
