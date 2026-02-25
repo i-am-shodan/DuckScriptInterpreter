@@ -966,7 +966,28 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
     if (extCommands.find(str) != extCommands.cend())
     {
         LOG(Log::LOG_DEBUG, "\t\tFound extension command to run: %s\r\n", str.c_str());
-        ret.evaluationResult = evaluateExpression(extCommands.at(str)(str, _constants, _variables));
+
+        // We have to be a little bit careful here. An extension command will either return
+        // "", script error
+        // "1", "0", true or false
+        // "23324234", some int value
+        // "TEST", some string value
+        const auto& result = evaluateExpression(extCommands.at(str)(str, _constants, _variables));
+        if (result.empty())
+        {
+            ret.error = true;
+            return ret;
+        }
+        else if (!isStringDigits(result))
+        {
+            // the function returned a real string, not a number as a string
+            // we now need to add double quote to handle this exactly like a variable
+            ret.evaluationResult = "\"" + result + "\"";
+        }
+        else
+        {
+            ret.evaluationResult = result;
+        }
     }
     else if (_funcLookup.find(str) != _funcLookup.cend())
     {
@@ -1675,7 +1696,8 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         if (extCommands.find(command) != extCommands.cend())
         {
             const auto extCommandResult = evaluateExpression(extCommands.at(command)(line, _constants, _variables));
-            ret = extCommandResult == DuckyInterpreter::TRUE ? _lineNumber++ : SCRIPT_ERROR;
+            // Any valid string is a successful execution. To signal a syntax error return an empty string
+            ret = !extCommandResult.empty() ? _lineNumber++ : SCRIPT_ERROR;
             break;
         }
 

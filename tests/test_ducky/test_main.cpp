@@ -181,6 +181,10 @@ std::string neverTrue(const std::string& str, const std::unordered_map<std::stri
     return "0";
 }
 
+std::string returnStrTest(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
+    return "TEST";
+}
+
 static bool set = false;
 std::string trueOnce(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     if (set == false)
@@ -204,6 +208,7 @@ void runTest(int id, std::string filename, std::string output, std::string lang 
     extCommands["TRUE_FIVE_TIMES()"] = trueFiveTimes;
     extCommands["NEVER_TRUE()"] = neverTrue;
     extCommands["TRUE_ONCE()"] = trueOnce;
+    extCommands["TEST()"] = returnStrTest;
 
     consts.emplace_back([] {
         return std::pair("#DYNAMICVAR1", "a");
@@ -273,6 +278,7 @@ int main(void) {
     runTest(28, "examples/string_variables.txt", "P4R4P5R5P5R5P5R5P5R5");
     runTest(29, "examples/function_returns_string.txt", "P4R4");
     runTest(30, "examples/while_with_string.txt", "P4R4");
+    runTest(31, "examples/ext_funcs_can_return_strings.txt", "P4R4");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

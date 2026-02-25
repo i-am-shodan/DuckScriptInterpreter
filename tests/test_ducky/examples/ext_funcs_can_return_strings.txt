@@ -1,0 +1,15 @@
+IF (TEST() == "TEST")
+    STRING a
+END_IF
+
+IF (TEST() == "test")
+    STRING b
+END_IF
+
+IF (TEST() == "Test")
+    STRING c
+END_IF
+
+IF (TEST() == "")
+    STRING d
+END_IF
