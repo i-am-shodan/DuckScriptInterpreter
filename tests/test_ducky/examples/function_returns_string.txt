@@ -2,10 +2,10 @@ FUNCTION A()
     RETURN "Hello"
 END_FUNCTION
 
-IF (A() == "Hello")
+IF (A() == "Hello") THEN
     STRING a
 END_IF
 
-IF (A() == "Hell")
+IF (A() == "Hell") THEN
     STRING b
 END_IF

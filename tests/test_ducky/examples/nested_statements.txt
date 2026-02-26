@@ -3,12 +3,12 @@ VAR $FILE_INDEX = 0
 WHILE ( TRUE_FIVE_TIMES() == TRUE )
     STRING a
 
-    IF (TRUE_ONCE())
+    IF (TRUE_ONCE()) THEN
         $FILE_INDEX = ( $FILE_INDEX + 1 )
-    ELSE IF (NEVER_TRUE())
+    ELSE IF (NEVER_TRUE()) THEN
         STRING a
 
-        IF (BUTTON_LONG_PRESS() == 1)
+        IF (BUTTON_LONG_PRESS() == 1) THEN
             STRING fail
         ELSE
             STRING fail

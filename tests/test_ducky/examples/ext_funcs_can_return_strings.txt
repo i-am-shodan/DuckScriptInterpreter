@@ -1,15 +1,15 @@
-IF (TEST() == "TEST")
+IF (TEST() == "TEST") THEN
     STRING a
 END_IF
 
-IF (TEST() == "test")
+IF (TEST() == "test") THEN
     STRING b
 END_IF
 
-IF (TEST() == "Test")
+IF (TEST() == "Test") THEN
     STRING c
 END_IF
 
-IF (TEST() == "")
+IF (TEST() == "") THEN
     STRING d
 END_IF

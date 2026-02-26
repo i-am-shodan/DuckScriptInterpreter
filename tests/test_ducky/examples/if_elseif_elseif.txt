@@ -1,15 +1,15 @@
 VAR $INDEX = 1
 WHILE (TRUE_FIVE_TIMES())
-    IF ($INDEX == 1)
+    IF ($INDEX == 1) THEN
         STRING a
-    ELSE IF ($INDEX == 2)
+    ELSE IF ($INDEX == 2) THEN
         STRING b
-    ELSE IF ($INDEX == 3)
+    ELSE IF ($INDEX == 3) THEN
         STRING c
     END_IF
 
     $INDEX = ( $INDEX + 1 )
-    IF ($INDEX == 4)
+    IF ($INDEX == 4) THEN
         $INDEX = 1
     END_IF
 END_WHILE

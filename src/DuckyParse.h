@@ -127,6 +127,7 @@ private:
         bool error = false;
         int returnLineNumber = -1;
         std::string functionName;
+        bool callerIsConditionalStatement = false;
     };
 
     std::function<void(uint32_t)> _delayFunc;
@@ -191,6 +192,11 @@ public:
     void Restart()
     {
         _lineNumber = 0;
+
+        _variables.clear();
+        _sortedVariableKeys.clear();
+        _variables["$?"] = DuckyInterpreter::FALSE;
+        _variablesKeyCacheDirty = true;
 
         while (!_whileLoopLineNumbers.empty())
         {

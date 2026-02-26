@@ -49,6 +49,7 @@ static const std::string prefixSTRINGLN = "STRINGLN";
 static const std::string prefixEND_STRINGLN = "END_STRINGLN";
 static const std::string AliasTRUE = "TRUE";
 static const std::string AliasFALSE = "FALSE";
+static const std::string LastErrorCodeVariable = "$?";
 
 static const std::vector<std::string> kEmptyConditions = {};
 static const std::vector<std::string> kNestingIF = {prefixIF};
@@ -193,6 +194,30 @@ static bool IsVariableIntType(const std::string &var)
     return true;
 }
 
+/// @brief This function takes a string from either a parsed file or a user defined function and return a variable in our string format
+/// @param input 
+/// @return variable in our std::string format
+static std::string wrapVariable(std::string input)
+{
+    if (input.empty())
+    {
+        return input;
+    }
+    else if (isStringDigits(input))
+    {
+        return input;
+    }
+    else if (input.front() == '"' && input.back() == '"' && std::count(input.cbegin(), input.cend(), '"') == 2)
+    {
+        return input;
+    }
+    else
+    {
+        // add quotes, variable is a string
+        return "\"" + input + "\"";
+    }
+}
+
 bool DuckyInterpreter::SetKeyboardLayout(const std::string &layout)
 {
     if (layout == "win_en-US")
@@ -267,6 +292,9 @@ DuckyInterpreter::DuckyInterpreter(
       _linesToIgnore(),
       _lineNumber(0)
 {
+        // Built-in variable: last statement / extension command result.
+        // Default to FALSE until first command executes.
+        _variables[LastErrorCodeVariable] = DuckyInterpreter::FALSE;
 
     _statementHandlers["VAR"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
     {
@@ -455,11 +483,21 @@ DuckyInterpreter::DuckyInterpreter(
             _variablesKeyCacheDirty = true;
         }
 
-        _lineNumber = _callstack.top().returnLineNumber - 1; // todo I hate this, this is to stop the increment that happens after
+        const auto &callerContext = _callstack.top();
+
+        // A RETURN behaves differently depending on how the function was called:
+        // - from IF/WHILE condition evaluation: resume on the calling line so the condition is re-evaluated.
+        // - from a normal standalone function call: resume on the next line to avoid re-invoking the same function call.
+        _lineNumber = callerContext.returnLineNumber;
+        if (callerContext.callerIsConditionalStatement == false)
+        {
+            _lineNumber++;
+        }
+
         LOG(Log::LOG_DEBUG, "RETURN FOUND, jumping to %d\r\n", _lineNumber);
         _callstack.pop();
 
-        return _lineNumber++;
+        return _lineNumber;
     };
 
     _statementHandlers["DEFINE"] = [this](const std::string &line, const std::string &command, const ExtensionCommands &cmdExtensions, const UserDefinedConstants &udc)
@@ -851,7 +889,7 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
                 ltrim(statement);
                 rtrim(statement);
 
-                if (statement.length() < 5)
+                if (statement.length() < 2)
                 {
                     LOG(Log::LOG_WARNING, "\t\t\tStatement is too short %s\r\n", statement.c_str());
                     break;
@@ -917,20 +955,33 @@ static std::string extractCondition(const std::string &line)
         return std::string();
     }
 
+    // Ensure we have enough characters to contain both prefix and required suffix.
+    if (line.size() < (prefix.size() + suffix.size()))
+    {
+        LOG(Log::LOG_ERROR, "\t\tCannot extract condition from malformed line = '%s'\r\n", line.c_str());
+        return std::string();
+    }
+
     if (prefix.size() != 0)
     {
-        if (condition.substr(0, prefix.size()) == prefix)
+        if (condition.size() < prefix.size() || condition.substr(0, prefix.size()) != prefix)
         {
-            condition = condition.substr(prefix.size());
+            LOG(Log::LOG_ERROR, "\t\tCondition is missing expected prefix '%s' in line '%s'\r\n", prefix.c_str(), line.c_str());
+            return std::string();
         }
+
+        condition = condition.substr(prefix.size());
     }
 
     if (suffix.size() != 0)
     {
-        if (condition.substr(condition.size() - suffix.size()) == suffix)
+        if (condition.size() < suffix.size() || condition.substr(condition.size() - suffix.size()) != suffix)
         {
-            condition = condition.substr(0, condition.size() - suffix.size());
+            LOG(Log::LOG_ERROR, "\t\tCondition is missing expected suffix '%s' in line '%s'\r\n", suffix.c_str(), line.c_str());
+            return std::string();
         }
+
+        condition = condition.substr(0, condition.size() - suffix.size());
     }
 
     return condition;
@@ -975,19 +1026,13 @@ DuckyInterpreter::EvaluationResult DuckyInterpreter::evaluate(std::string &str, 
         const auto& result = evaluateExpression(extCommands.at(str)(str, _constants, _variables));
         if (result.empty())
         {
+            _variables[LastErrorCodeVariable] = DuckyInterpreter::FALSE;
             ret.error = true;
             return ret;
         }
-        else if (!isStringDigits(result))
-        {
-            // the function returned a real string, not a number as a string
-            // we now need to add double quote to handle this exactly like a variable
-            ret.evaluationResult = "\"" + result + "\"";
-        }
-        else
-        {
-            ret.evaluationResult = result;
-        }
+
+        ret.evaluationResult = wrapVariable(result);
+        _variables[LastErrorCodeVariable] = wrapVariable(result);
     }
     else if (_funcLookup.find(str) != _funcLookup.cend())
     {
@@ -1070,6 +1115,9 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::s
             ret.error = false;
             ret.returnLineNumber = lineNumber;
             ret.functionName = lhsEvalResult.functionName;
+            // This function call originated inside an IF/WHILE condition.
+            // We must return to this same line after function execution so the statement can be evaluated again.
+            ret.callerIsConditionalStatement = true;
             return ret;
         }
 
@@ -1079,6 +1127,9 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::s
             ret.error = false;
             ret.returnLineNumber = lineNumber;
             ret.functionName = rhsEvalResult.functionName;
+            // This function call originated inside an IF/WHILE condition.
+            // We must return to this same line after function execution so the statement can be evaluated again.
+            ret.callerIsConditionalStatement = true;
             return ret;
         }
 
@@ -1295,7 +1346,10 @@ int DuckyInterpreter::handleFUNCTION(const std::string &filePath, const int &lin
         return pushCallStack(item);
     };
 
+    // set the start of the function to be the current line (which is the func definition) + 1
     _funcLookup[functionName] = _lineNumber + 1;
+
+    // skip over the function by jumping to the known end of the function + 1
     return endOfFunction + 1;
 }
 
@@ -1686,6 +1740,9 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         if (_statementHandlers.find(commandToLookup) != _statementHandlers.cend())
         {
             ret = _statementHandlers[commandToLookup](line, command, extCommands, userDefinedConstValues);
+
+            // Statement handlers update $? with boolean success/failure.
+            _variables[LastErrorCodeVariable] = (ret != SCRIPT_ERROR) ? DuckyInterpreter::TRUE : DuckyInterpreter::FALSE;
             break;
         }
 
@@ -1698,6 +1755,7 @@ int DuckyInterpreter::Execute(const std::string &filePath,
             const auto extCommandResult = evaluateExpression(extCommands.at(command)(line, _constants, _variables));
             // Any valid string is a successful execution. To signal a syntax error return an empty string
             ret = !extCommandResult.empty() ? _lineNumber++ : SCRIPT_ERROR;
+            _variables[LastErrorCodeVariable] = !extCommandResult.empty() ? wrapVariable(extCommandResult) : DuckyInterpreter::FALSE;
             break;
         }
 

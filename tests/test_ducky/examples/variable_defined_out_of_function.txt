@@ -1,7 +1,7 @@
 VAR $A = FALSE
 
 FUNCTION CHECK()
-    IF ($A == FALSE)
+    IF ($A == FALSE) THEN
         STRING a
         $A = TRUE
     ELSE

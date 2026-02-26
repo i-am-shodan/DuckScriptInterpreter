@@ -1,14 +1,14 @@
 VAR $SOMETEXT = "a"
-IF ($SOMETEXT == "a")
+IF ($SOMETEXT == "a") THEN
   STRING $SOMETEXT
 END_IF
 
 $SOMETEXT = "bbbb"
 
-IF ($SOMETEXT == "bbbb")
+IF ($SOMETEXT == "bbbb") THEN
   STRING $SOMETEXT
 END_IF
 
-IF ($SOMETEXT == "cccccccccccccccc")
+IF ($SOMETEXT == "cccccccccccccccc") THEN
   STRING $SOMETEXT
 END_IF
