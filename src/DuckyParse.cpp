@@ -844,7 +844,17 @@ inline std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::strin
     }
     else if (words.size() == 1)
     {
-        return std::make_tuple(words[0], DuckyInterpreter::DuckyScriptOperator::EQ, "1");
+        // This is a single variable on its own. We want to compare this against true
+        // At the time this function is called the left hand side hasn't been evaluated
+        // We don't know if the type is a string or a int type and we won't until its evaluated
+        // This leaves us with a problem, how can we create an op to test against TRUE.
+
+        // IF ("Hello"), IF (42), IF (TRUE) and IF (1) all want to return true if this case
+        // But the LHS could be a function eg WHILE ( NEVER_TRUE() )
+
+        // To get around this we return LHS, EQ, ""
+        // Anyone evaluating will need to check the RHS and create the right value
+        return std::make_tuple(words[0], DuckyInterpreter::DuckyScriptOperator::EQ, "");
     }
     else
     {
@@ -1134,6 +1144,26 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::s
         }
 
         const bool lhsType = IsVariableIntType(lhsEvalResult.evaluationResult);
+
+        // Now that we have evaluated we first need to check that we aren't processing a
+        // IF (VALUE) or WHILE(VALUE) equality test. We will know this is the case if
+        // OP is EQ and the RHS has evaluated to empty. If this case we need to test if the
+        // LHS is a string or it and test equality accordingly.
+        if (op == DuckyScriptOperator::EQ && rhsEvalResult.evaluationResult.empty())
+        {
+            if (lhsType)
+            {
+                const int lhsValue = atoi(lhsEvalResult.evaluationResult.c_str());
+                *conditionToCheck = lhsValue != 0;
+            }
+            else
+            {
+                *conditionToCheck = lhsEvalResult.evaluationResult != DuckyInterpreter::FALSE;
+            }
+            ret.error = false;
+            return ret;
+        }
+
         const bool rhsType = IsVariableIntType(rhsEvalResult.evaluationResult);
 
         if (lhsType != rhsType)
