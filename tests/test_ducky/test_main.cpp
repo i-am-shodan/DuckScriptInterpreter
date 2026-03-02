@@ -185,6 +185,10 @@ std::string returnStrTest(const std::string& str, const std::unordered_map<std::
     return "TEST";
 }
 
+std::string return42(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
+    return "42";
+}
+
 static bool set = false;
 std::string trueOnce(const std::string& str, const std::unordered_map<std::string, std::string>& constants, const std::unordered_map<std::string, std::string>& variables) {
     if (set == false)
@@ -209,6 +213,7 @@ void runTest(int id, std::string filename, std::string output, std::string lang 
     extCommands["NEVER_TRUE()"] = neverTrue;
     extCommands["TRUE_ONCE()"] = trueOnce;
     extCommands["TEST()"] = returnStrTest;
+    extCommands["42()"] = return42;
 
     consts.emplace_back([] {
         return std::pair("#DYNAMICVAR1", "a");

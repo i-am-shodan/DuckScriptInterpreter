@@ -39,3 +39,8 @@ END_IF
 IF (C()) THEN
     STRING g
 END_IF
+
+42()
+IF ($?) THEN
+    STRING h
+END_IF
