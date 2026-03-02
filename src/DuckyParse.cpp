@@ -1647,6 +1647,14 @@ void DuckyInterpreter::replaceVariablesInLine(std::string &line, bool dequoteStr
 {
     rebuildSortedVariableKeysIfNeeded();
 
+    // we don't want to keep forcing a rebuild of the sorted variable keys each time
+    // a function is run, but we do need to ensure we aren't caching old values for $?
+    // so we always pluck this value from the underlying store.
+    const auto &lastErrorCodeValue =_variables[LastErrorCodeVariable];
+    const bool dequoteLastErrorCodeValue = (dequoteStrValues && !IsVariableIntType(lastErrorCodeValue));
+    line = replaceAllOccurrences(line, LastErrorCodeVariable, !dequoteLastErrorCodeValue ? lastErrorCodeValue : lastErrorCodeValue.substr(1, lastErrorCodeValue.size() - 2));
+
+    // now go on to do the rest of the variables
     for (const auto &key : _sortedVariableKeys)
     {
         const auto varIt = _variables.find(key);

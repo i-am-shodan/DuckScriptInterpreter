@@ -44,3 +44,6 @@ END_IF
 IF ($?) THEN
     STRING h
 END_IF
+
+42()
+STRING $?
