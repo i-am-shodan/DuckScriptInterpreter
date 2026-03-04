@@ -1206,13 +1206,18 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::s
         }
         else // both are strings
         {
-            if (op != DuckyScriptOperator::EQ)
+            switch (op)
             {
-                LOG(Log::LOG_ERROR, "\tInvalid comparision\r\n");
-                return ret;
+                case DuckyScriptOperator::EQ:
+                    *conditionToCheck &= lhsEvalResult.evaluationResult == rhsEvalResult.evaluationResult;
+                    break;
+                case DuckyScriptOperator::NE:
+                    *conditionToCheck &= lhsEvalResult.evaluationResult != rhsEvalResult.evaluationResult;
+                    break;
+                default:
+                    LOG(Log::LOG_ERROR, "\tInvalid comparision\r\n");
+                    return ret;
             }
-
-            *conditionToCheck &= lhsEvalResult.evaluationResult == rhsEvalResult.evaluationResult;
         }
     }
 
