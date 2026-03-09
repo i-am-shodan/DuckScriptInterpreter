@@ -285,6 +285,7 @@ int main(void) {
     runTest(30, "examples/while_with_string.txt", "P4R4");
     runTest(31, "examples/ext_funcs_can_return_strings.txt", "P4R4");
     runTest(32, "examples/last_exit_code.txt", "P4R4P5R5P6R6P7R7P8R8P9R9P10R10P11R11P33R33P31R31");
+    runTest(33, "examples/negative_numbers.txt", "P4R4P4R4");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

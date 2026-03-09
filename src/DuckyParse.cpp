@@ -324,11 +324,11 @@ DuckyInterpreter::DuckyInterpreter(
         }
         else
         {
-            if (std::all_of(varValue.begin(), varValue.end(), ::isdigit))
+            if (isStringDigits(varValue))
             {
                 value = varValue;
             }
-            else if (varValue.front() == '"' && varValue.back() == '"' && std::count(varValue.begin(), varValue.end(), '"') == 2)
+            else if (varValue.front() == '"' && varValue.back() == '"' && std::count(varValue.cbegin(), varValue.cend(), '"') == 2)
             {
                 // we add the variable with the double quotes
                 value = varValue;
@@ -914,7 +914,7 @@ std::vector<std::tuple<std::string, DuckyInterpreter::DuckyScriptOperator, std::
                 {
                     LOG(Log::LOG_DEBUG, "\t\t\tContains further nesting, parsing again\r\n", statement.c_str());
                     auto newResult = parseCondition(statement);
-                    result.insert(result.end(), newResult.begin(), newResult.end());
+                    result.insert(result.cend(), newResult.cbegin(), newResult.cend());
                 }
                 else
                 {

@@ -1,0 +1,17 @@
+FUNCTION Negative()
+    RETURN -1
+END_FUNCTION
+
+VAR $X = -1
+
+IF ($X == -1) THEN
+    STRING a
+END_IF
+
+IF ($X != -1) THEN
+    STRING b
+END_IF
+
+IF (Negative() == -1) THEN
+    STRING a
+END_IF

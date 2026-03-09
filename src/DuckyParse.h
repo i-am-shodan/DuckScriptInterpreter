@@ -298,7 +298,7 @@ namespace Ducky
     static std::string lowerCaseString(const std::string &str)
     {
         std::string result = str;
-        std::transform(result.begin(), result.end(), result.begin(),
+        std::transform(result.cbegin(), result.cend(), result.begin(),
                        [](unsigned char c)
                        { return std::tolower(c); });
         return result;
@@ -342,15 +342,15 @@ namespace Ducky
     // trim from end (in place)
     static inline void rtrim(std::string &s)
     {
-        s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch)
+        s.erase(std::find_if(s.crbegin(), s.crend(), [](unsigned char ch)
                              { return !std::isspace(ch); })
                     .base(),
-                s.end());
+                s.cend());
     }
 
     static inline void ltrim(std::string &s)
     {
-        s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch)
+        s.erase(s.cbegin(), std::find_if(s.cbegin(), s.cend(), [](unsigned char ch)
                                         { return !std::isspace(ch); }));
     }
 
@@ -379,9 +379,24 @@ namespace Ducky
 
     static bool isStringDigits(const std::string &str)
     {
-        for (char c : str)
+        if (str.empty())
         {
-            if (!isdigit(c))
+            return false;
+        }
+
+        size_t start = 0;
+        if (str[0] == '-')
+        {
+            if (str.length() == 1)
+            {
+                return false; // bare '-' is not a number
+            }
+            start = 1;
+        }
+
+        for (size_t i = start; i < str.length(); ++i)
+        {
+            if (!isdigit(str[i]))
             {
                 return false;
             }
