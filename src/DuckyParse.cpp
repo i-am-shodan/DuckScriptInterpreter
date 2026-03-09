@@ -1785,7 +1785,15 @@ int DuckyInterpreter::Execute(const std::string &filePath,
             ret = _statementHandlers[commandToLookup](line, command, extCommands, userDefinedConstValues);
 
             // Statement handlers update $? with boolean success/failure.
-            _variables[LastErrorCodeVariable] = (ret != SCRIPT_ERROR) ? DuckyInterpreter::TRUE : DuckyInterpreter::FALSE;
+            // Flow control and declaration commands should not affect the last error code.
+            static const std::unordered_set<std::string> noErrorCodeUpdate = {
+                "RETURN", "IF", prefixEND_IF, "WHILE", EndWHILE,
+                "FUNCTION", prefixEND_FUNCTION, "$", "DEFINE", "VAR"
+            };
+            if (noErrorCodeUpdate.find(commandToLookup) == noErrorCodeUpdate.cend())
+            {
+                _variables[LastErrorCodeVariable] = (ret != SCRIPT_ERROR) ? DuckyInterpreter::TRUE : DuckyInterpreter::FALSE;
+            }
             break;
         }
 

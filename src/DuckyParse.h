@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <functional>
 #include <string>
 #include <vector>
