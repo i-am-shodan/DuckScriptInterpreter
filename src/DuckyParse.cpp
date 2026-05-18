@@ -1168,6 +1168,21 @@ DuckyInterpreter::CallStackItem DuckyInterpreter::evaluateStatement(const std::s
 
         if (lhsType != rhsType)
         {
+            // Special case: string compared to TRUE/FALSE.
+            // C-style semantics: any string (non-null pointer) is truthy (1).
+            // So "str" == TRUE is always TRUE, "str" == FALSE is always FALSE.
+            if (!lhsType && rhsType && (op == DuckyScriptOperator::EQ || op == DuckyScriptOperator::NE))
+            {
+                const int rhsValue = atoi(rhsEvalResult.evaluationResult.c_str());
+                const int lhsAsBool = 1; // any string is truthy
+                if (op == DuckyScriptOperator::EQ)
+                    *conditionToCheck &= lhsAsBool == rhsValue;
+                else
+                    *conditionToCheck &= lhsAsBool != rhsValue;
+                ret.error = false;
+                return ret;
+            }
+
             // A number is being compared to a string
             // we cannot evaluate two different types
             LOG(Log::LOG_ERROR, "\tInvalid evaluation, cannot compare string and int LHS = %s, OP = %d, RHS = %s\r\n", lhsStr.c_str(), op, rhsStr.c_str());
