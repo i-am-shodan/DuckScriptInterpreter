@@ -24,6 +24,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     #include <cstdarg>
 #endif
 
+#ifndef DUCKY_LOG_LEVEL
+    #define DUCKY_LOG_LEVEL 0 // LOG_WARNING
+#endif
+
 namespace Ducky
 {
     class Log
@@ -40,7 +44,7 @@ namespace Ducky
 #if DUCKY_LOG_INTERNAL
         static void Write(LogLevel level, const char *format, ...)
         {
-            if ((uint8_t)level >= (uint8_t)Log::LOG_WARNING)
+            if ((uint8_t)level >= DUCKY_LOG_LEVEL)
             {
                 va_list args;
                 va_start(args, format);
