@@ -310,7 +310,7 @@ DuckyInterpreter::DuckyInterpreter(
         }
 
         const auto &varName = args[0];
-        const auto &varValue = args[2];
+        auto varValue = args[2];
 
         std::string value;
 
@@ -335,8 +335,41 @@ DuckyInterpreter::DuckyInterpreter(
             }
             else
             {
-                LOG(Log::LOG_ERROR, "Invalid variable declaration %s\n", varValue.c_str());
-                return (DuckyReturn)SCRIPT_ERROR;
+                const auto &rhsEvalResult = this->evaluate(varValue, cmdExtensions);
+                if (rhsEvalResult.requiresScriptEvaluation)
+                {
+                    CallStackItem csi;
+                    csi.returnLineNumber = _lineNumber;
+                    csi.error = rhsEvalResult.error;
+                    csi.functionName = rhsEvalResult.functionName;
+                    // This function call originated inside an VAR condition.
+                    // We must return to this same line after function execution so the statement can be evaluated again.
+                    csi.callerIsConditionalStatement = true;
+
+                    LOG(Log::LOG_INFO, "Need to execute function %s\r\n", csi.functionName.c_str());
+                    return pushCallStack(csi);
+                }
+                else
+                {
+                    const auto &result = rhsEvalResult.evaluationResult;
+
+                    // An empty result means the expression did not resolve to anything valid - syntax error.
+                    if (result.empty())
+                    {
+                        LOG(Log::LOG_ERROR, "Invalid VAR declaration: value did not evaluate to a valid expression\n");
+                        return (DuckyReturn)SCRIPT_ERROR;
+                    }
+
+                    // A bare unquoted, non-numeric string means an unresolved identifier - syntax error.
+                    if (!isStringDigits(result) &&
+                        !(result.size() >= 2 && result.front() == '"' && result.back() == '"'))
+                    {
+                        LOG(Log::LOG_ERROR, "Invalid VAR declaration: unresolved identifier '%s'\n", result.c_str());
+                        return (DuckyReturn)SCRIPT_ERROR;
+                    }
+
+                    value = wrapVariable(result);
+                }
             }
         }
 

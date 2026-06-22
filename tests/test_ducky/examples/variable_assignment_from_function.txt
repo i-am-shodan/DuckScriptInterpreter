@@ -1,0 +1,15 @@
+FUNCTION X()
+    RETURN 1337
+END_FUNCTION
+
+VAR $A = X()
+
+IF ($A == 1337) THEN
+    STRING a
+END_IF
+
+VAR $B = 42()
+
+IF ($B == 42) THEN
+    STRING a
+END_IF

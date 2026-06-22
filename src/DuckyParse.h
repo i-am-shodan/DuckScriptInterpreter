@@ -224,6 +224,17 @@ public:
             _variablesKeyCacheDirty = true;
         }
     }
+
+    bool GetVariable(const std::string &name, std::string &outValue) const
+    {
+        const auto it = _variables.find(name);
+        if (it == _variables.cend())
+        {
+            return false;
+        }
+        outValue = it->second;
+        return true;
+    }
 };
 
 inline DuckyInterpreter::USB_MODE operator|(DuckyInterpreter::USB_MODE a, DuckyInterpreter::USB_MODE b)

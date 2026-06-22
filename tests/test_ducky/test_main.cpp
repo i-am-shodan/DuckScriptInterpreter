@@ -288,6 +288,7 @@ int main(void) {
     runTest(33, "examples/negative_numbers.txt", "P4R4P4R4");
     runTest(34, "examples/while_false.txt", "");
     runTest(35, "examples/string_comparision_against_false.txt", "P4R4");
+    runTest(35, "examples/variable_assignment_from_function.txt", "P4R4P4R4");
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }
