@@ -81,6 +81,7 @@ static std::unordered_map<std::string, std::unordered_map<std::string, USBKeyDef
 #include "locales/win_no.h"
 #include "locales/win_pt-BR.h"
 #include "locales/win_pt-PT.h"
+#include "locales/win_ru.h"
 #include "locales/win_se.h"
 #include "locales/win_si.h"
 #include "locales/win_sk-SK.h"
