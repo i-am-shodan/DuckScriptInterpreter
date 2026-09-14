@@ -60,6 +60,7 @@ The following layouts are currently support and are given in the format. \<OS>_\
 * win_no
 * win_pt-BR
 * win_pt-PT
+* win_ru
 * win_se
 * win_si
 * win_sk-SK
