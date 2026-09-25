@@ -170,6 +170,16 @@ static bool tryGetOperator(const std::string &op, DuckyInterpreter::DuckyScriptO
     return false;
 }
 
+static bool isInternalDuckyStatement(const std::string &command, const std::unordered_map<std::string, int> &functionLookup)
+{
+    static const std::unordered_set<std::string> kInternalCommands = {
+        "REM", "END_IF", "RETURN", "DEFINE", "IF", "WHILE", EndWHILE,
+        "$", "FUNCTION", prefixEND_FUNCTION, RestartPayload, "VAR"};
+
+    return kInternalCommands.find(command) != kInternalCommands.cend() ||
+           functionLookup.find(command) != functionLookup.cend();
+}
+
 
 // This function can only be used after an variable has been added to the _variables list
 static bool IsVariableIntType(const std::string &var)
@@ -271,7 +281,10 @@ DuckyInterpreter::DuckyInterpreter(
     std::function<void(bool, uint8_t, uint8_t, uint8_t, uint8_t)> changeLEDStateFunc,
     std::function<void()> waitForButtonPressFunc,
     std::function<void(DuckyInterpreter::USB_MODE &, const uint16_t &, const uint16_t &, const std::string &, const std::string &, const std::string &)> changeModeFunc,
-    std::function<void()> reset)
+    std::function<void()> reset,
+    std::function<uint32_t()> nowMicrosFunc,
+    uint16_t maxStatementsPerExecute,
+    uint32_t maxMicrosPerExecute)
     : _delayFunc(delayFunc),
       _readLineFunc(readLineFunc),
       _keyboardPressFunc(keyboardPressFunc),
@@ -280,6 +293,9 @@ DuckyInterpreter::DuckyInterpreter(
       _waitForButtonPressFunc(waitForButtonPressFunc),
       _changeModeFunc(changeModeFunc),
       _reset(reset),
+    _nowMicrosFunc(nowMicrosFunc),
+    _maxStatementsPerExecute(maxStatementsPerExecute),
+    _maxMicrosPerExecute(maxMicrosPerExecute),
       _constants(),
       _variables(),
     _sortedConstantKeys(),
@@ -1699,18 +1715,31 @@ int DuckyInterpreter::getLineAndProcess(const std::string &filePath, const int &
 
 void DuckyInterpreter::replaceVariablesInLine(std::string &line, bool dequoteStrValues)
 {
+    if (line.find('$') == std::string::npos)
+    {
+        return;
+    }
+
     rebuildSortedVariableKeysIfNeeded();
 
     // we don't want to keep forcing a rebuild of the sorted variable keys each time
     // a function is run, but we do need to ensure we aren't caching old values for $?
     // so we always pluck this value from the underlying store.
-    const auto &lastErrorCodeValue =_variables[LastErrorCodeVariable];
-    const bool dequoteLastErrorCodeValue = (dequoteStrValues && !IsVariableIntType(lastErrorCodeValue));
-    line = replaceAllOccurrences(line, LastErrorCodeVariable, !dequoteLastErrorCodeValue ? lastErrorCodeValue : lastErrorCodeValue.substr(1, lastErrorCodeValue.size() - 2));
+    if (line.find(LastErrorCodeVariable) != std::string::npos)
+    {
+        const auto &lastErrorCodeValue = _variables[LastErrorCodeVariable];
+        const bool dequoteLastErrorCodeValue = (dequoteStrValues && !IsVariableIntType(lastErrorCodeValue));
+        line = replaceAllOccurrences(line, LastErrorCodeVariable, !dequoteLastErrorCodeValue ? lastErrorCodeValue : lastErrorCodeValue.substr(1, lastErrorCodeValue.size() - 2));
+    }
 
     // now go on to do the rest of the variables
     for (const auto &key : _sortedVariableKeys)
     {
+        if (key == LastErrorCodeVariable)
+        {
+            continue;
+        }
+
         const auto varIt = _variables.find(key);
         if (varIt == _variables.cend())
         {
@@ -1773,14 +1802,21 @@ int DuckyInterpreter::Execute(const std::string &filePath,
                               const ExtensionCommands &extCommands,
                               const UserDefinedConstants &userDefinedConstValues)
 {
-    DuckyReturn ret = SCRIPT_ERROR;
-
     // reset line if the filename has changed
     if (filePath != currentlyExecutingFile)
     {
         currentlyExecutingFile = filePath;
         Restart();
     }
+
+    DuckyReturn ret = _lineNumber;
+    const uint32_t startMicros = _nowMicrosFunc ? _nowMicrosFunc() : 0;
+    uint16_t statementsExecuted = 0;
+
+    const auto timeBudgetExpired = [this, startMicros]()
+    {
+        return _nowMicrosFunc && static_cast<uint32_t>(_nowMicrosFunc() - startMicros) >= _maxMicrosPerExecute;
+    };
 
     do
     {
@@ -1803,7 +1839,7 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         {
             _lineNumber++;
             ret = _lineNumber;
-            break;
+            continue;
         }
 
         // ensure we don't execute any else or else if conditions, these have been added to the linesToIgnore stack
@@ -1814,7 +1850,7 @@ int DuckyInterpreter::Execute(const std::string &filePath,
             _lineNumber = _linesToIgnore.top().second +1;
             ret = _lineNumber;
             _linesToIgnore.pop();
-            break;
+            continue;
         }
 
         LOG(Log::LOG_DEBUG, "line after replacements = '%s'\r\n", line.c_str());
@@ -1827,6 +1863,15 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         const bool isVariableAssignment = line.size() >= 2 && line[0] == '$';
 
         const auto &commandToLookup = isVariableAssignment ? "$" : command;
+
+        if (command == "REM")
+        {
+            _lineNumber++;
+            ret = _lineNumber;
+            continue;
+        }
+
+        ++statementsExecuted;
 
         // First see if we have any registered handlers that know how to execute this command
         if (_statementHandlers.find(commandToLookup) != _statementHandlers.cend())
@@ -1843,7 +1888,13 @@ int DuckyInterpreter::Execute(const std::string &filePath,
             {
                 _variables[LastErrorCodeVariable] = (ret != SCRIPT_ERROR) ? DuckyInterpreter::TRUE : DuckyInterpreter::FALSE;
             }
-            break;
+
+            if (ret == SCRIPT_ERROR || ret == END_OF_FILE || !isInternalDuckyStatement(commandToLookup, _funcLookup))
+            {
+                break;
+            }
+
+            continue;
         }
 
         // we can now replace any variables that still exist in the line as flow control has finished
@@ -1875,7 +1926,8 @@ int DuckyInterpreter::Execute(const std::string &filePath,
         LOG(Log::LOG_ERROR, "Failed processing = '%s'\n", line.c_str());
         ret = SCRIPT_ERROR;
 
-    } while (false);
+    } while (statementsExecuted == 0 ||
+             (statementsExecuted < _maxStatementsPerExecute && !timeBudgetExpired()));
 
     return ret;
 }

@@ -251,6 +251,78 @@ void runTest(int id, std::string filename, std::string output, std::string lang 
     if ( (lineNum == DuckyInterpreter::END_OF_FILE && testString == output) || (lineNum == DuckyInterpreter::SCRIPT_ERROR && output == "ERROR") ) { printf("[%d] - PASSED\n", id); } else { printf("[%d] - FAILED\n", id); }     
 }
 
+void runBatchingTest()
+{
+    ExtensionCommands extCommands;
+    UserDefinedConstants consts;
+
+    DuckyInterpreter ducky(
+        delay,
+        readLineFromFile,
+        keyboard_press,
+        keyboard_release,
+        changeLEDState,
+        waitForButton,
+        changeUSBMode,
+        reset);
+
+    testString = "";
+    const int firstResult = ducky.Execute("examples/batching_internal.txt", extCommands, consts);
+    const bool internalStatementsBatched = firstResult != DuckyInterpreter::END_OF_FILE &&
+                                           firstResult != DuckyInterpreter::SCRIPT_ERROR &&
+                                           testString == "P4R4";
+
+    const int secondResult = ducky.Execute("examples/batching_internal.txt", extCommands, consts);
+    const bool externalCommandYielded = secondResult != DuckyInterpreter::END_OF_FILE &&
+                                        secondResult != DuckyInterpreter::SCRIPT_ERROR &&
+                                        testString == "P4R4P5R5";
+
+    DuckyInterpreter cappedDucky(
+        delay,
+        readLineFromFile,
+        keyboard_press,
+        keyboard_release,
+        changeLEDState,
+        waitForButton,
+        changeUSBMode,
+        reset);
+
+    testString = "";
+    const int cappedResult = cappedDucky.Execute("examples/batching_limit.txt", extCommands, consts);
+    const bool statementCapApplied = cappedResult != DuckyInterpreter::END_OF_FILE &&
+                                     cappedResult != DuckyInterpreter::SCRIPT_ERROR &&
+                                     testString.empty();
+
+    const int afterCapResult = cappedDucky.Execute("examples/batching_limit.txt", extCommands, consts);
+    const bool externalCommandAfterCapYielded = afterCapResult != DuckyInterpreter::END_OF_FILE &&
+                                                afterCapResult != DuckyInterpreter::SCRIPT_ERROR &&
+                                                testString == "P6R6";
+
+    DuckyInterpreter zeroBudgetDucky(
+        delay,
+        readLineFromFile,
+        keyboard_press,
+        keyboard_release,
+        changeLEDState,
+        waitForButton,
+        changeUSBMode,
+        reset,
+        [] { return 0U; },
+        16,
+        0);
+
+    testString = "";
+    const int zeroBudgetResult = zeroBudgetDucky.Execute("examples/batching_zero_budget.txt", extCommands, consts);
+    const bool zeroBudgetExecutedOneStatement = zeroBudgetResult != DuckyInterpreter::END_OF_FILE &&
+                                                zeroBudgetResult != DuckyInterpreter::SCRIPT_ERROR &&
+                                                testString == "P4R4";
+
+    const bool passed = internalStatementsBatched && externalCommandYielded &&
+                        statementCapApplied && externalCommandAfterCapYielded &&
+                        zeroBudgetExecutedOneStatement;
+    printf("[36] - %s\n", passed ? "PASSED" : "FAILED");
+}
+
 int main(void) {
 
     runTest(1, "examples/basic.txt", "D5000P4R4");
@@ -289,6 +361,7 @@ int main(void) {
     runTest(34, "examples/while_false.txt", "");
     runTest(35, "examples/string_comparision_against_false.txt", "P4R4");
     runTest(35, "examples/variable_assignment_from_function.txt", "P4R4P4R4");
+    runBatchingTest();
 
     //printf("OUTSTR = '%s'\r\n", testString.c_str());
 }

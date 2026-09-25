@@ -139,6 +139,9 @@ private:
     std::function<void()> _waitForButtonPressFunc;
     std::function<void(DuckyInterpreter::USB_MODE &, const uint16_t &, const uint16_t &, const std::string &, const std::string &, const std::string &)> _changeModeFunc;
     std::function<void()> _reset;
+    std::function<uint32_t()> _nowMicrosFunc;
+    uint16_t _maxStatementsPerExecute;
+    uint32_t _maxMicrosPerExecute;
 
     std::unordered_map<std::string, StatementHandler> _statementHandlers;
     std::unordered_map<std::string, std::string> _constants;
@@ -182,7 +185,10 @@ public:
         std::function<void(bool, uint8_t, uint8_t, uint8_t, uint8_t)> changeLEDStateFunc,
         std::function<void()> waitForButtonPressFunc,
         std::function<void(DuckyInterpreter::USB_MODE &, const uint16_t &, const uint16_t &, const std::string &, const std::string &, const std::string &)> changeModeFunc,
-        std::function<void()> reset);
+        std::function<void()> reset,
+        std::function<uint32_t()> nowMicrosFunc = nullptr,
+        uint16_t maxStatementsPerExecute = 16,
+        uint32_t maxMicrosPerExecute = 750);
 
     int Execute(const std::string &filePath,
                 const ExtensionCommands &extCommands,

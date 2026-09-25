@@ -1,0 +1,7 @@
+REM Internal statements are batched.
+VAR $VALUE = 1
+$VALUE = ( $VALUE + 1 )
+IF ($VALUE == 2) THEN
+STRING a
+END_IF
+STRING b
